@@ -88,11 +88,11 @@ if not df.empty:
     df['Amount'] = (df['Unit Price'] * df['Quantity']) - df['Adjustments']
 
     # --- Metrics Section ---
-    st.subheader("Key Performance Indicators")
-    k1, k2, k3 = st.columns(3)
-    k1.metric("Net Revenue", f"${df['Amount'].sum():,.2f}")
-    k2.metric("Total Discounts", f"-${df['Adjustments'].sum():,.2f}")
-    k3.metric("Items Sold", int(df['Quantity'].sum()))
+   # st.subheader("Key Performance Indicators")
+#k1, k2, k3 = st.columns(3)
+    #k1.metric("Net Revenue", f"${df['Amount'].sum():,.2f}")
+    #k2.metric("Total Discounts", f"-${df['Adjustments'].sum():,.2f}")
+    #k3.metric("Items Sold", int(df['Quantity'].sum()))
 
 # --- 3. DATA PROCESSING ---
 # ... (Keep your previous numeric conversion logic for Amount/Quantity) ...
@@ -110,7 +110,7 @@ if not df.empty:
 
 
 
-# --- 3. DATA PROCESSING ---
+#   --- 3. DATA PROCESSING ---
 #raw_data = sh.get_all_records()
 #df = pd.DataFrame(raw_data)
 
