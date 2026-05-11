@@ -96,4 +96,14 @@ st.plotly_chart(fig_time, use_container_width=True)
 
 # Show Raw Data
 with st.expander("View Raw Data Table"):
-    st.dataframe(df.sort_values("Date", ascending=False), use_container_width=True)
+    # Create a copy so we don't break the original data types for charts
+    display_df = df.copy()
+    
+    # Format the Date column for the UI
+    display_df['Date'] = display_df['Date'].dt.strftime('%d-%m-%Y')
+    
+    # Show the table sorted by date
+    st.dataframe(
+        display_df.sort_values("Date", ascending=False), 
+        use_container_width=True
+    )
