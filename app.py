@@ -94,8 +94,26 @@ if not df.empty:
     #k2.metric("Total Discounts", f"-${df['Adjustments'].sum():,.2f}")
     #k3.metric("Items Sold", int(df['Quantity'].sum()))
 
-# --- 3. DATA PROCESSING ---
+#--- 3. DATA PROCESSING ---
 # ... (Keep your previous numeric conversion logic for Amount/Quantity) ...
+# --- 2. ANALYTICS SECTION ---
+if not df.empty:
+    # KPI Metrics
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Total Revenue", f"${df['Amount'].sum():,.2f}")
+    m2.metric("Total Items", int(df['Quantity'].sum()))
+    m3.metric("Avg. Order", f"${df['Amount'].mean():,.2f}")
+    m4.metric("Discounts", f"-${df['Adjustments'].sum():,.2f}")
+
+    # Main Charts
+    tab1, tab2 = st.tabs(["📊 Sales Trends", "💳 Payment Methods"])
+    with tab1:
+        fig_trend = px.line(df.groupby('Date')['Amount'].sum().reset_index(), x='Date', y='Amount', title="Revenue Over Time")
+        st.plotly_chart(fig_trend, use_container_width=True)
+    with tab2:
+        fig_pay = px.pie(df, values="Amount", names="Payment Type", hole=0.4)
+        st.plotly_chart(fig_pay, use_container_width=True)
+
 
 if not df.empty:
     st.subheader("Payment Method Breakdown")
@@ -127,23 +145,7 @@ if not df.empty:
     # 3. NOW calculate the Amount
 #    df['Amount'] = df['Unit Price'] * df['Quantity']
 
-# --- 2. ANALYTICS SECTION ---
-if not df.empty:
-    # KPI Metrics
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Total Revenue", f"${df['Amount'].sum():,.2f}")
-    m2.metric("Total Items", int(df['Quantity'].sum()))
-    m3.metric("Avg. Order", f"${df['Amount'].mean():,.2f}")
-    m4.metric("Discounts", f"-${df['Adjustments'].sum():,.2f}")
 
-    # Main Charts
-    tab1, tab2 = st.tabs(["📊 Sales Trends", "💳 Payment Methods"])
-    with tab1:
-        fig_trend = px.line(df.groupby('Date')['Amount'].sum().reset_index(), x='Date', y='Amount', title="Revenue Over Time")
-        st.plotly_chart(fig_trend, use_container_width=True)
-    with tab2:
-        fig_pay = px.pie(df, values="Amount", names="Payment Type", hole=0.4)
-        st.plotly_chart(fig_pay, use_container_width=True)
 
                             
 
