@@ -24,32 +24,31 @@ sh = client.open_by_key(SHEET_ID).sheet1
 st.sidebar.header("📝 New Sale Entry")
 
 with st.sidebar.form("entry_form", clear_on_submit=True):
-    # Data Entry Fields
     date = st.date_input("Sale Date")
     customer = st.text_input("Customer Name")
     item = st.text_input("Item Name")
-    
-    # Selection Fields
     category = st.selectbox("Category", ["Bats", "Balls", "Gloves", "Pads", "Helmets", "Clothing", "Accessories"])
     size = st.selectbox("Size", ["N/A", "Small", "Medium", "Large", "Full Size", "Harrow", "6", "5", "4"])
     
-    # Numeric Fields
-    quantity = st.number_input("Quantity", min_value=1, step=1)
-    amount = st.number_input("Total Amount", min_value=0.0, step=1.0, format="%.2f")
+    # Input Quantity and Unit Price
+    quantity = st.number_input("Quantity", min_value=1, step=1, value=1)
+    unit_price = st.number_input("Unit Price", min_value=0.0, step=1.0, format="%.2f")
     
-    # Status Field
     status = st.selectbox("Payment Status", ["Paid", "Pending", "Cancelled"])
     
     submit = st.form_submit_button("Submit Sale")
     
     if submit:
         if customer and item:
-            # IMPORTANT: This list must match the EXACT order of columns in your Google Sheet
-            # Assuming order: Date, Item Name, Category, Size, Quantity, Amount, Customer Name, Payment Status
-            new_row = [str(date), customer,item,category,amount,status,size,quantity,unitAmount,adjustments,ptype,notes]
+            # THE CALCULATION: Multiply Unit Price by Quantity
+            total_amount = unit_price * quantity
+            
+            # Prepare the row for Google Sheets
+            # Order: Date, Item Name, Category, Size, Quantity, Amount, Customer Name, Payment Status
+            new_row = [str(date), item, category, size, quantity, total_amount, customer, status]
             
             sh.append_row(new_row)
-            st.sidebar.success(f"Record for {customer} added!")
+            st.sidebar.success(f"Added! Total: {total_amount:.2f}")
             st.rerun()
         else:
             st.sidebar.error("Customer and Item Name are required.")
