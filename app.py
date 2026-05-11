@@ -53,29 +53,22 @@ with st.sidebar.form("entry_form", clear_on_submit=True):
         else:
             st.sidebar.error("Customer and Item Name are required.")
 
-# --- 3. DATA PROCESSING & AGGREGATION ---
-# Pull data and convert to DataFrame
+# --- 3. DATA PROCESSING ---
 raw_data = sh.get_all_records()
 df = pd.DataFrame(raw_data)
 
-# This ensures that even if someone manually edited the sheet wrongly, 
-# the dashboard shows the calculated total. 
-# NOTE: This assumes you have a 'Unit Price' column in your sheet.
-# If you DON'T have a Unit Price column in the sheet, skip this step.
-if 'Unit Price' in df.columns:
-    df['Unit Price'] = pd.to_numeric(df['Unit Price'], errors='coerce').fillna(0)
-    df['Amount'] = df['Unit Price'] * df['Quantity']
-    
-
-# Ensure data exists and format types
 if not df.empty:
+    # 1. Standardize the Date
     df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-    df['Amount'] = pd.to_numeric(df['Amount'], errors='coerce').fillna(0)
     df = df.dropna(subset=['Date']) 
-    
-    # Create the display formats for the Table
-    display_df = df.sort_values("Date", ascending=False).copy()
-    display_df['Date'] = display_df['Date'].dt.strftime('%d-%m-%Y')
+
+    # 2. FORCE NUMERIC TYPES (This fixes the math error)
+    # 'coerce' turns non-numbers into NaN, then .fillna(0) makes them 0
+    df['Unit Price'] = pd.to_numeric(df['Unit Price'], errors='coerce').fillna(0)
+    df['Quantity'] = pd.to_numeric(df['Quantity'], errors='coerce').fillna(0)
+
+    # 3. NOW calculate the Amount
+    df['Amount'] = df['Unit Price'] * df['Quantity']
 
 # --- 4. VISUALIZATION ---
 
