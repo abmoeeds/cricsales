@@ -69,6 +69,18 @@ if not df.empty:
     df['Amount'] = df['Unit Price'] * df['Quantity']
 
 # --- 4. VISUALIZATION ---
+st.subheader("Key Performance Indicators")
+kpi1, kpi2, kpi3 = st.columns(3)
+
+with kpi1:
+    st.metric("Total Revenue", f"${df['Amount'].sum():,.2f}")
+with kpi2:
+    st.metric("Total Qty Sold", int(df['Quantity'].sum()))
+with kpi3:
+    # Calculate Average Unit Price
+    avg_unit = df['Unit Price'].mean() if not df.empty else 0
+    st.metric("Avg Unit Price", f"${avg_unit:,.2f}")
+
 
 # Row 1: Category Breakdown
 st.subheader("Total Sales by Category")
