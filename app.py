@@ -78,6 +78,22 @@ cat_total = df.groupby("Category")["Amount"].sum().reset_index()
 fig_cat = px.bar(cat_total, x="Category", y="Amount", color="Category", text_auto=True)
 st.plotly_chart(fig_cat, use_container_width=True)
 
+# Row 1.5: Top Customers & Items
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("Top Customers (by Value)")
+    cust_total = df.groupby("Customer Name")["Amount"].sum().nlargest(5).reset_index()
+    fig_cust = px.bar(cust_total, x="Amount", y="Customer Name", orientation='h', text_auto=True)
+    st.plotly_chart(fig_cust, use_container_width=True)
+
+with col2:
+    st.subheader("Top Selling Items")
+    item_counts = df["Item Name"].value_counts().nlargest(5).reset_index()
+    item_counts.columns = ["Item Name", "Count"]
+    fig_item = px.pie(item_counts, values="Count", names="Item Name", hole=0.4)
+    st.plotly_chart(fig_item, use_container_width=True)
+
 # Row 2: Time Aggregates
 st.subheader("Time-Based Aggregates")
 view_option = st.radio("Select View:", ["Daily", "Weekly", "Monthly", "Quarterly"], horizontal=True)
