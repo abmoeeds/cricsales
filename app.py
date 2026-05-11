@@ -22,52 +22,50 @@ sh = client.open_by_key(SHEET_ID).sheet1
 
 # --- 2. DATA ENTRY SECTION ---
 # --- 2. DATA ENTRY SECTION ---
-st.sidebar.header("📝 New Sale Entry")
 
-with st.sidebar.form("entry_form", clear_on_submit=True):
-    # Existing Fields
-    date = st.date_input("Sale Date")
-    customer = st.text_input("Customer Name")
-    item = st.text_input("Item Name")
-    category = st.selectbox("Category", ["Bats", "Balls", "Gloves", "Pads", "Helmets", "Clothing", "Accessories"])
-    size = st.selectbox("Size", ["N/A", "Small", "Medium", "Large", "Full Size", "Harrow", "6", "5", "4"])
-    
-    quantity = st.number_input("Quantity", min_value=1, step=1, value=1)
-    unit_price = st.number_input("Unit Price", min_value=0.0, step=1.0)
-    discount = st.number_input("Adjustment / Discount (-)", min_value=0.0, step=1.0)
-    
-    status = st.selectbox("Payment Status", ["Paid", "Pending", "Cancelled"])
-    payment_date = st.date_input("Payment Date (If Paid)")
-    
-    # NEW FIELDS
-    payment_type = st.selectbox("Payment Type", ["N/A", "Cash", "Card", "Bank Transfer"])
-    notes = st.text_area("Notes", placeholder="e.g. Special request or delivery info")
-    
-    submit = st.form_submit_button("Submit Sale")
-    
-    if submit:
-        total_calculated = (unit_price * quantity) - discount
+
+# --- 1. HEADER & TOP ACTIONS ---
+st.title("🏏 Cricket Sales Analytics")
+
+# Floating Action Button for New Sale
+with st.popover("➕ Add New Sale Record", use_container_width=True):
+    with st.form("entry_form", clear_on_submit=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            date = st.date_input("Sale Date")
+            customer = st.text_input("Customer Name")
+            item = st.text_input("Item Name")
+            category = st.selectbox("Category", ["Bats", "Balls", "Gloves", "Pads", "Helmets", "Clothing", "Accessories"])
+        with col2:
+            size = st.selectbox("Size", ["N/A", "Small", "Medium", "Large", "Full Size", "Harrow", "6", "5", "4"])
+            quantity = st.number_input("Quantity", min_value=1, step=1, value=1)
+            unit_price = st.number_input("Unit Price", min_value=0.0)
+            discount = st.number_input("Adjustment / Discount (-)", min_value=0.0)
+
+        st.markdown("---")
+        c3, c4 = st.columns(2)
+        with c3:
+            status = st.selectbox("Payment Status", ["Paid", "Pending", "Cancelled"])
+            payment_date = st.date_input("Payment Date")
+        with c4:
+            payment_type = st.selectbox("Payment Type", ["N/A", "Cash", "Card", "Bank Transfer"])
+            notes = st.text_area("Notes")
+
+        submit = st.form_submit_button("Submit Sale", use_container_width=True)
         
-        # Prepare row (13 Columns Total)
-        new_row = [
-            str(date),          # A: Date
-            item,               # B: Item Name
-            category,           # C: Category
-            size,               # D: Size
-            int(quantity),      # E: Quantity
-            float(unit_price),  # F: Unit Price
-            float(discount),    # G: Adjustments
-            float(total_calculated), # H: Amount
-            customer,           # I: Customer Name
-            status,             # J: Payment Status
-            str(payment_date),  # K: Payment Date
-            payment_type,       # L: Payment Type (NEW)
-            notes               # M: Notes (NEW)
-        ]
-        
-        sh.append_row(new_row)
-        st.sidebar.success(f"Added! Method: {payment_type}")
-        st.rerun()
+        if submit:
+            total_calculated = (unit_price * quantity) - discount
+            new_row = [str(date), item, category, size, int(quantity), float(unit_price), 
+                       float(discount), float(total_calculated), customer, status, 
+                       str(payment_date), payment_type, notes]
+            sh.append_row(new_row)
+            st.success(f"Sale for {customer} saved!")
+            st.rerun()
+
+
+
+
+
 
 
 # --- 3. DATA PROCESSING ---
@@ -108,42 +106,6 @@ if not df.empty:
     st.plotly_chart(fig_pay, use_container_width=True)
     
 
-  # --- 4. DELETE LOGIC ---
-st.markdown("---")
-st.subheader("🗑️ Delete Record")
-display_df = df.sort_values("Date", ascending=False).copy()
-to_delete = st.selectbox("Select Record:", options=display_df.index,
-                         format_func=lambda x: f"{display_df.loc[x, 'Date'].strftime('%d-%m-%Y')} - {display_df.loc[x, 'Customer Name']}")
-
-if st.button("Delete Permanently", type="primary"):
-    # Target row = Index + 2 (1 for header, 1 for 0-indexing)
-    sh.delete_rows(int(to_delete) + 2)
-    st.success("Deleted!")
-    st.rerun()
-
-# --- 5. EDIT LOGIC ---
-st.subheader("✏️ Bulk Edit All Records")
-edited_df = st.data_editor(df, use_container_width=True)
-
-if st.button("💾 Save All Edits"):
-    save_df = edited_df.copy()
-    # Format dates correctly for Google Sheets
-    save_df['Date'] = pd.to_datetime(save_df['Date']).dt.strftime('%Y-%m-%d')
-    save_df['Payment Date'] = pd.to_datetime(save_df['Payment Date']).dt.strftime('%Y-%m-%d')
-    
-    # Fill empty notes with empty string to avoid API errors
-    save_df['Notes'] = save_df['Notes'].fillna("")
-    
-    sh.clear()
-    sh.update('A1', [save_df.columns.values.tolist()]) # Headers
-    sh.update('A2', save_df.values.tolist())          # Data
-    st.success("Google Sheet Fully Synced!")
-    st.rerun()
-
-
-
-
-
 
 
 
@@ -165,18 +127,25 @@ if st.button("💾 Save All Edits"):
     # 3. NOW calculate the Amount
 #    df['Amount'] = df['Unit Price'] * df['Quantity']
 
-# --- 4. VISUALIZATION ---
-st.subheader("Key Performance Indicators")
-kpi1, kpi2, kpi3 = st.columns(3)
+# --- 2. ANALYTICS SECTION ---
+if not df.empty:
+    # KPI Metrics
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Total Revenue", f"${df['Amount'].sum():,.2f}")
+    m2.metric("Total Items", int(df['Quantity'].sum()))
+    m3.metric("Avg. Order", f"${df['Amount'].mean():,.2f}")
+    m4.metric("Discounts", f"-${df['Adjustments'].sum():,.2f}")
 
-with kpi1:
-    st.metric("Total Revenue", f"${df['Amount'].sum():,.2f}")
-with kpi2:
-    st.metric("Total Qty Sold", int(df['Quantity'].sum()))
-with kpi3:
-    # Calculate Average Unit Price
-    avg_unit = df['Unit Price'].mean() if not df.empty else 0
-    st.metric("Avg Unit Price", f"${avg_unit:,.2f}")
+    # Main Charts
+    tab1, tab2 = st.tabs(["📊 Sales Trends", "💳 Payment Methods"])
+    with tab1:
+        fig_trend = px.line(df.groupby('Date')['Amount'].sum().reset_index(), x='Date', y='Amount', title="Revenue Over Time")
+        st.plotly_chart(fig_trend, use_container_width=True)
+    with tab2:
+        fig_pay = px.pie(df, values="Amount", names="Payment Type", hole=0.4)
+        st.plotly_chart(fig_pay, use_container_width=True)
+
+                            
 
 
 # Row 1: Category Breakdown
@@ -250,3 +219,41 @@ with st.expander("View Raw Data Table"):
         use_container_width=True,
         hide_index=True  # Optional: hides the index column for a cleaner look
     )
+
+
+
+
+
+
+# --- 3. MANAGEMENT SECTION (BOTTOM) ---
+st.markdown("---")
+st.subheader("⚙️ Database Management")
+
+with st.expander("🗑️ Delete a Record"):
+    # Create a nice label for selection
+    display_df = df.sort_values("Date", ascending=False).copy()
+    to_delete = st.selectbox("Select record to permanently remove:", options=display_df.index,
+                             format_func=lambda x: f"{display_df.loc[x, 'Date'].strftime('%d-%m-%Y')} - {display_df.loc[x, 'Customer Name']} (${display_df.loc[x, 'Amount']})")
+    
+    if st.button("Confirm Delete", type="primary"):
+        # Calculate Google Sheets row (Header + 0-index offset)
+        actual_row = int(to_delete) + 2
+        sh.delete_rows(actual_row)
+        st.warning("Record deleted from Google Sheets.")
+        st.rerun()
+
+with st.expander("📝 Bulk Edit Spreadsheet"):
+    st.info("You can edit cells directly in the table below. Click 'Save' to sync with Google Sheets.")
+    edited_df = st.data_editor(df, use_container_width=True, hide_index=True)
+    
+    if st.button("💾 Save All Changes"):
+        save_df = edited_df.copy()
+        # Convert date columns back to strings safely
+        for col in ['Date', 'Payment Date']:
+            save_df[col] = pd.to_datetime(save_df[col]).dt.strftime('%Y-%m-%d')
+        
+        sh.clear()
+        sh.update('A1', [save_df.columns.values.tolist()])
+        sh.update('A2', save_df.values.tolist())
+        st.success("Database synced successfully!")
+        st.rerun()
