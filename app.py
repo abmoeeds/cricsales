@@ -58,36 +58,19 @@ with st.sidebar.form("entry_form", clear_on_submit=True):
             st.sidebar.error("Please fill in Customer and Item names.")
 
 # --- 3. DATA PROCESSING & AGGREGATION ---
-st.title("📊 Sales Analytics Dashboard")
-
-# Pull data
+# Pull data and convert to DataFrame
 raw_data = sh.get_all_records()
-if not raw_data:
-    st.warning("No data found in the Google Sheet.")
-    st.stop()
-
 df = pd.DataFrame(raw_data)
 
-# --- NEW ROBUST CONVERSION CODE ---
-# 1. Convert Date: errors='coerce' turns "bad" dates into None (NaT)
-df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-
-# 2. Drop rows where Date is invalid or Amount is missing
-df = df.dropna(subset=['Date'])
-
-# 3. Ensure Amount is numeric (errors='coerce' handles any text in amount column)
-df['Amount'] = pd.to_numeric(df['Amount'], errors='coerce').fillna(0)
-
-# Only proceed if we still have data
-if df.empty:
-    st.error("No valid sales data found. Check your Google Sheet formatting!")
-    st.stop()
-# ----------------------------------
-
-# Create Time Dimensions
-df['Week'] = df['Date'].dt.to_period('W').apply(lambda r: r.start_time)
-df['Month'] = df['Date'].dt.to_period('M').apply(lambda r: r.start_time)
-df['Quarter'] = df['Date'].dt.to_period('Q').apply(lambda r: r.start_time)
+# Ensure data exists and format types
+if not df.empty:
+    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+    df['Amount'] = pd.to_numeric(df['Amount'], errors='coerce').fillna(0)
+    df = df.dropna(subset=['Date']) 
+    
+    # Create the display formats for the Table
+    display_df = df.sort_values("Date", ascending=False).copy()
+    display_df['Date'] = display_df['Date'].dt.strftime('%d-%m-%Y')
 
 # --- 4. VISUALIZATION ---
 
