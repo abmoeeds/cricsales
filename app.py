@@ -21,22 +21,41 @@ sh = client.open_by_key(SHEET_ID).sheet1
 #sh = client.open(SHEET_NAME).sheet1
 
 # --- 2. DATA ENTRY SECTION ---
-st.sidebar.header("Add New Sale")
+st.sidebar.header("📝 New Sale Entry")
+
 with st.sidebar.form("entry_form", clear_on_submit=True):
+    # Field 1: Date
     date = st.date_input("Sale Date")
-    customer = st.text_input("Customer Name")  # New Field
-    item = st.text_input("Item Name")          # New Field
-    category = st.selectbox("Category", ["Bats", "Balls", "Gloves", "Pads", "Helmets"])
-    amount = st.number_input("Amount", min_value=0.0, step=10.0)
+    
+    # Field 2: Customer Name
+    customer = st.text_input("Customer Name", placeholder="e.g. John Doe")
+    
+    # Field 3: Item Name
+    item = st.text_input("Item Name", placeholder="e.g. Kookaburra Bat")
+    
+    # Field 4: Category Dropdown
+    category = st.selectbox("Category", [
+        "Helmet","Shoes","Tennis Ball","Wooden Stumps","Toe Guard","Bat Grip","Bat Handle Replacement","Bat Refurbishing","Bat Stickers","Cricket Bat English Willow","Batting Gloves","Batting Pads","Thigh Pads","Abdominal Guard","Kit Bag","Red Ball","Bat Knocking","SG GLOVES","NIVI PU BALLS","SS COMPLETE KIT","BAT CRACK REPAIR","Bat Binding","Bat repair","Cricket Bat Kashmir Willow","Mallet","Scuff Sheet","Batting Inner Gloves","Plastic Stumps","supporter","Arm Guard","cricket wear","Bat weight Reduction","Bats"
+    ])
+    
+    # Field 5: Amount
+    amount = st.number_input("Amount", min_value=0.0, step=1.0, format="%.2f")
+    
+    # Field 6: Payment Status
     status = st.selectbox("Payment Status", ["Paid", "Pending", "Cancelled"])
     
+    # Submit Button
     submit = st.form_submit_button("Submit Sale")
+    
     if submit:
-        # Update the row to include the new fields
-        # Ensure the order matches your Google Sheet columns!
-        sh.append_row([str(date), customer, item, category, amount, status])
-        st.sidebar.success(f"Sale for {customer} saved!")
-        st.rerun()
+        if customer and item: # Basic validation
+            # Sending 6 fields to match your updated sheet structure
+            new_row = [str(date), customer, item, category, amount, status]
+            sh.append_row(new_row)
+            st.sidebar.success(f"Successfully recorded sale for {customer}!")
+            st.rerun()
+        else:
+            st.sidebar.error("Please fill in Customer and Item names.")
 
 # --- 3. DATA PROCESSING & AGGREGATION ---
 st.title("📊 Sales Analytics Dashboard")
