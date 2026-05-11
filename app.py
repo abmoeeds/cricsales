@@ -116,7 +116,7 @@ if not df.empty:
 
     with tab2:
         fig_pay = px.pie(df, values="Amount", names="Payment Type", hole=0.4)
-        fig_pay.update_traces(textinfo='percent+label',提示_template='£%{value:,.2f}') 
+        fig_pay.update_traces(textinfo='percent+label',hovertemplate='£%{value:,.2f}') 
         st.plotly_chart(fig_pay, use_container_width=True)
 
 
