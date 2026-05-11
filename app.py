@@ -58,6 +58,15 @@ with st.sidebar.form("entry_form", clear_on_submit=True):
 raw_data = sh.get_all_records()
 df = pd.DataFrame(raw_data)
 
+# This ensures that even if someone manually edited the sheet wrongly, 
+# the dashboard shows the calculated total. 
+# NOTE: This assumes you have a 'Unit Price' column in your sheet.
+# If you DON'T have a Unit Price column in the sheet, skip this step.
+if 'Unit Price' in df.columns:
+    df['Unit Price'] = pd.to_numeric(df['Unit Price'], errors='coerce').fillna(0)
+    df['Amount'] = df['Unit Price'] * df['Quantity']
+    
+
 # Ensure data exists and format types
 if not df.empty:
     df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
