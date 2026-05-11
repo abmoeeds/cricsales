@@ -24,38 +24,35 @@ sh = client.open_by_key(SHEET_ID).sheet1
 st.sidebar.header("📝 New Sale Entry")
 
 with st.sidebar.form("entry_form", clear_on_submit=True):
-    # Field 1: Date
+    # Data Entry Fields
     date = st.date_input("Sale Date")
+    customer = st.text_input("Customer Name")
+    item = st.text_input("Item Name")
     
-    # Field 2: Customer Name
-    customer = st.text_input("Customer Name", placeholder="e.g. John Doe")
+    # Selection Fields
+    category = st.selectbox("Category", ["Bats", "Balls", "Gloves", "Pads", "Helmets", "Clothing", "Accessories"])
+    size = st.selectbox("Size", ["N/A", "Small", "Medium", "Large", "Full Size", "Harrow", "6", "5", "4"])
     
-    # Field 3: Item Name
-    item = st.text_input("Item Name", placeholder="e.g. Kookaburra Bat")
+    # Numeric Fields
+    quantity = st.number_input("Quantity", min_value=1, step=1)
+    amount = st.number_input("Total Amount", min_value=0.0, step=1.0, format="%.2f")
     
-    # Field 4: Category Dropdown
-    category = st.selectbox("Category", [
-        "Helmet","Shoes","Tennis Ball","Wooden Stumps","Toe Guard","Bat Grip","Bat Handle Replacement","Bat Refurbishing","Bat Stickers","Cricket Bat English Willow","Batting Gloves","Batting Pads","Thigh Pads","Abdominal Guard","Kit Bag","Red Ball","Bat Knocking","SG GLOVES","NIVI PU BALLS","SS COMPLETE KIT","BAT CRACK REPAIR","Bat Binding","Bat repair","Cricket Bat Kashmir Willow","Mallet","Scuff Sheet","Batting Inner Gloves","Plastic Stumps","supporter","Arm Guard","cricket wear","Bat weight Reduction","Bats"
-    ])
-    
-    # Field 5: Amount
-    amount = st.number_input("Amount", min_value=0.0, step=1.0, format="%.2f")
-    
-    # Field 6: Payment Status
+    # Status Field
     status = st.selectbox("Payment Status", ["Paid", "Pending", "Cancelled"])
     
-    # Submit Button
     submit = st.form_submit_button("Submit Sale")
     
     if submit:
-        if customer and item: # Basic validation
-            # Sending 6 fields to match your updated sheet structure
-            new_row = [str(date), customer, item, category, amount, status]
+        if customer and item:
+            # IMPORTANT: This list must match the EXACT order of columns in your Google Sheet
+            # Assuming order: Date, Item Name, Category, Size, Quantity, Amount, Customer Name, Payment Status
+            new_row = [str(date), customer,item,category,amount,payment Status,Size,quantity,unit Amount,adjustments,payment type,notes]
+            
             sh.append_row(new_row)
-            st.sidebar.success(f"Successfully recorded sale for {customer}!")
+            st.sidebar.success(f"Record for {customer} added!")
             st.rerun()
         else:
-            st.sidebar.error("Please fill in Customer and Item names.")
+            st.sidebar.error("Customer and Item Name are required.")
 
 # --- 3. DATA PROCESSING & AGGREGATION ---
 # Pull data and convert to DataFrame
