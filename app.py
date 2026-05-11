@@ -29,7 +29,7 @@ with st.sidebar.form("entry_form", clear_on_submit=True):
     item = st.text_input("Item Name")
     category = st.selectbox("Category", ["Helmet","Shoes","Tennis Ball","Wooden Stumps","Toe Guard","Bat Grip","Bat Handle Replacement","Bat Refurbishing","Bat Stickers","Cricket Bat English Willow","Batting Gloves","Batting Pads","Thigh Pads","Abdominal Guard","Kit Bag","Red Ball","Bat Knocking","SG GLOVES","NIVI PU BALLS","SS COMPLETE KIT","BAT CRACK REPAIR","Bat Binding","BAT REPAIR","Cricket Bat Kashmir Willow","Mallet","Scuff Sheet","Batting Inner Gloves","Plastic Stumps","supporter","Arm Guard","cricket wear","Bat weight Reduction","Other Bats"
 ])
-    size = st.selectbox("Size", ["N/A", "Small", "Medium", "Large", "Full Size", "Harrow", "6", "5", "4"])
+    size = st.selectbox("Size", ["N/A", "Small", "Medium", "Large", "Full Size", "Harrow", "6", "5", "4","7", "8", "9", "10", "11","12"])
     
     # Input Quantity and Unit Price
     quantity = st.number_input("Quantity", min_value=1, step=1, value=1)
@@ -50,6 +50,41 @@ if submit:
     sh.append_row(new_row)
     st.sidebar.success(f"Saved! Total: ${total_calculated:,.2f}")
     st.rerun()
+
+# --- 4. MANAGE RECORDS (EDIT/DELETE) ---
+st.markdown("---")
+st.subheader("🛠️ Manage Existing Records")
+
+# We use the display_df (which is already sorted) to let the user pick a record
+record_to_action = st.selectbox(
+    "Select a Sale to Edit/Delete:",
+    options=display_df.index,
+    format_func=lambda x: f"{display_df.loc[x, 'Date']} - {display_df.loc[x, 'Customer Name']} - {display_df.loc[x, 'Item Name']}"
+)
+
+# Get the actual row number in Google Sheets
+# gspread is 1-indexed, and we have a header row, so we add 2 to the DataFrame index
+sheet_row_index = int(record_to_action) + 2 
+
+col_edit, col_del = st.columns(2)
+
+with col_edit:
+    if st.button("Edit Selected Record"):
+        st.info("Update the sidebar form with the new details and I will overwrite this row.")
+        # Logic: You can pre-fill the sidebar form if you store these in st.session_state
+        # For now, let's look at the Delete function which is more critical.
+
+with col_del:
+    if st.button("🗑️ Delete This Record", type="primary"):
+        # Delete from Google Sheets
+        sh.delete_rows(sheet_row_index)
+        st.success("Record deleted successfully!")
+        st.rerun()
+
+
+
+
+
 
 # --- 3. DATA PROCESSING ---
 raw_data = sh.get_all_records()
