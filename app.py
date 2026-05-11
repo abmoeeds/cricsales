@@ -39,8 +39,8 @@ with st.popover("➕ Add New Sale Record", use_container_width=True):
         with col2:
             size = st.selectbox("Size", ["N/A", "Small", "Medium", "Large", "Full Size", "Harrow", "6", "5", "4"])
             quantity = st.number_input("Quantity", min_value=1, step=1, value=1)
-            unit_price = st.number_input("Unit Price", min_value=0.0)
-            discount = st.number_input("Adjustment / Discount (-)", min_value=0.0)
+            unit_price = st.number_input("Unit Price (£)", min_value=0.0, format="%.2f")
+            discount = st.number_input("Adjustment / Discount (£)", min_value=0.0, format="%.2f")
 
         st.markdown("---")
         c3, c4 = st.columns(2)
@@ -59,7 +59,7 @@ with st.popover("➕ Add New Sale Record", use_container_width=True):
                        float(discount), float(total_calculated), customer, status, 
                        str(payment_date), payment_type, notes]
             sh.append_row(new_row)
-            st.success(f"Sale for {customer} saved!")
+            st.success(f"Sale for {customer} saved! Total: £{total_calculated:,.2f}")
             st.rerun()
 
 
@@ -100,18 +100,23 @@ if not df.empty:
 if not df.empty:
     # KPI Metrics
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Total Revenue", f"${df['Amount'].sum():,.2f}")
+    m1.metric("Total Revenue", f"£{df['Amount'].sum():,.2f}")
     m2.metric("Total Items", int(df['Quantity'].sum()))
-    m3.metric("Avg. Order", f"${df['Amount'].mean():,.2f}")
-    m4.metric("Discounts", f"-${df['Adjustments'].sum():,.2f}")
+    m3.metric("Avg. Order", f"£{df['Amount'].mean():,.2f}")
+    m4.metric("Discounts", f"-£{df['Adjustments'].sum():,.2f}")
 
     # Main Charts
     tab1, tab2 = st.tabs(["📊 Sales Trends", "💳 Payment Methods"])
     with tab1:
         fig_trend = px.line(df.groupby('Date')['Amount'].sum().reset_index(), x='Date', y='Amount', title="Revenue Over Time")
         st.plotly_chart(fig_trend, use_container_width=True)
+        fig_trend.update_layout(yaxis_tickprefix='£', yaxis_tickformat=',.2f')
+        st.plotly_chart(fig_trend, use_container_width=True)
+
+
     with tab2:
         fig_pay = px.pie(df, values="Amount", names="Payment Type", hole=0.4)
+        fig_pay.update_traces(textinfo='percent+label',提示_template='£%{value:,.2f}') 
         st.plotly_chart(fig_pay, use_container_width=True)
 
 
@@ -245,6 +250,16 @@ with st.expander("🗑️ Delete a Record"):
         st.rerun()
 
 with st.expander("📝 Bulk Edit Spreadsheet"):
+    st.data_editor(
+        df,
+        column_config={
+            "Unit Price": st.column_config.NumberColumn("Unit Price", format="£%.2f"),
+            "Adjustments": st.column_config.NumberColumn("Adjustments", format="£%.2f"),
+            "Amount": st.column_config.NumberColumn("Total Amount", format="£%.2f"),
+        },
+        use_container_width=True,
+        hide_index=True
+        
     st.info("You can edit cells directly in the table below. Click 'Save' to sync with Google Sheets.")
     edited_df = st.data_editor(df, use_container_width=True, hide_index=True)
     
