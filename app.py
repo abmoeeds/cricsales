@@ -83,25 +83,87 @@ with col_del:
 
 
 
-
-
-
 # --- 3. DATA PROCESSING ---
 raw_data = sh.get_all_records()
 df = pd.DataFrame(raw_data)
 
 if not df.empty:
-    # 1. Standardize the Date
+    # Standardize data types
     df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
     df = df.dropna(subset=['Date']) 
-
-    # 2. FORCE NUMERIC TYPES (This fixes the math error)
-    # 'coerce' turns non-numbers into NaN, then .fillna(0) makes them 0
     df['Unit Price'] = pd.to_numeric(df['Unit Price'], errors='coerce').fillna(0)
     df['Quantity'] = pd.to_numeric(df['Quantity'], errors='coerce').fillna(0)
+    df['Amount'] = df['Unit Price'] * df['Quantity']
+
+    # CRITICAL: Define display_df HERE so it's available for everything below
+    display_df = df.sort_values("Date", ascending=False).copy()
+
+    # --- 4. MANAGE RECORDS (DELETE) ---
+    st.markdown("---")
+    st.subheader("🗑️ Delete a Record")
+    
+    # Selection box for picking a record to delete
+    # We use the original index to find the exact row in Google Sheets
+    to_delete = st.selectbox(
+        "Select Sale to Remove:",
+        options=display_df.index,
+        format_func=lambda x: f"{display_df.loc[x, 'Date'].strftime('%d-%m-%Y')} | {display_df.loc[x, 'Customer Name']} | {display_df.loc[x, 'Item Name']}"
+    )
+
+    if st.button("Delete Permanently", type="primary"):
+        # Google Sheets is 1-indexed + 1 row for Header = Index + 2
+        # However, since display_df is sorted, we must use the ORIGINAL index from 'df'
+        actual_row = to_delete + 2 
+        sh.delete_rows(actual_row)
+        st.success("Record Deleted!")
+        st.rerun()
+
+    # --- 5. DATA EDITOR (FOR EDITING) ---
+    st.markdown("---")
+    st.subheader("✏️ Edit Records")
+    st.write("Change any cell below and click 'Save' to update the Google Sheet.")
+    
+    # The Data Editor is the easiest way to handle EDITS
+    edited_df = st.data_editor(df, use_container_width=True, hide_index=True)
+    
+    if st.button("💾 Save All Edits"):
+        # Convert dates back to strings for Google Sheets
+        save_df = edited_df.copy()
+        save_df['Date'] = save_df['Date'].dt.strftime('%Y-%m-%d')
+        
+        # Overwrite Sheet: Keep headers, replace data
+        sh.clear()
+        sh.update('A1', [df.columns.values.tolist()]) # Headers
+        sh.update('A2', save_df.values.tolist())      # Data
+        st.success("Sheet Updated!")
+        st.rerun()
+
+
+
+
+
+
+
+
+
+
+
+# --- 3. DATA PROCESSING ---
+#raw_data = sh.get_all_records()
+#df = pd.DataFrame(raw_data)
+
+#if not df.empty:
+    # 1. Standardize the Date
+#    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+#    df = df.dropna(subset=['Date']) 
+
+#    # 2. FORCE NUMERIC TYPES (This fixes the math error)
+    # 'coerce' turns non-numbers into NaN, then .fillna(0) makes them 0
+ #   df['Unit Price'] = pd.to_numeric(df['Unit Price'], errors='coerce').fillna(0)
+ #   df['Quantity'] = pd.to_numeric(df['Quantity'], errors='coerce').fillna(0)
 
     # 3. NOW calculate the Amount
-    df['Amount'] = df['Unit Price'] * df['Quantity']
+#    df['Amount'] = df['Unit Price'] * df['Quantity']
 
 # --- 4. VISUALIZATION ---
 st.subheader("Key Performance Indicators")
