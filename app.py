@@ -25,6 +25,7 @@ sh = client.open_by_key(SHEET_ID).sheet1
 st.sidebar.header("📝 New Sale Entry")
 
 with st.sidebar.form("entry_form", clear_on_submit=True):
+    # Existing Fields
     date = st.date_input("Sale Date")
     customer = st.text_input("Customer Name")
     item = st.text_input("Item Name")
@@ -33,37 +34,39 @@ with st.sidebar.form("entry_form", clear_on_submit=True):
     
     quantity = st.number_input("Quantity", min_value=1, step=1, value=1)
     unit_price = st.number_input("Unit Price", min_value=0.0, step=1.0)
-    # NEW: Adjustments/Discount
-    discount = st.number_input("Adjustment / Discount (-)", min_value=0.0, step=1.0, help="Amount to subtract from total")
+    discount = st.number_input("Adjustment / Discount (-)", min_value=0.0, step=1.0)
     
     status = st.selectbox("Payment Status", ["Paid", "Pending", "Cancelled"])
-    # NEW: Payment Date
     payment_date = st.date_input("Payment Date (If Paid)")
+    
+    # NEW FIELDS
+    payment_type = st.selectbox("Payment Type", ["N/A", "Cash", "Card", "Bank Transfer"])
+    notes = st.text_area("Notes", placeholder="e.g. Special request or delivery info")
     
     submit = st.form_submit_button("Submit Sale")
     
     if submit:
-        # CALCULATION logic
-        total_before_discount = unit_price * quantity
-        final_total = total_before_discount - discount
+        total_calculated = (unit_price * quantity) - discount
         
-        # Prepare row for Google Sheet (11 Columns Total)
+        # Prepare row (13 Columns Total)
         new_row = [
-            str(date),          # A
-            item,               # B
-            category,           # C
-            size,               # D
-            int(quantity),      # E
-            float(unit_price),  # F
-            float(discount),    # G (NEW)
-            float(final_total), # H (UPDATED)
-            customer,           # I
-            status,             # J
-            str(payment_date)   # K (NEW)
+            str(date),          # A: Date
+            item,               # B: Item Name
+            category,           # C: Category
+            size,               # D: Size
+            int(quantity),      # E: Quantity
+            float(unit_price),  # F: Unit Price
+            float(discount),    # G: Adjustments
+            float(total_calculated), # H: Amount
+            customer,           # I: Customer Name
+            status,             # J: Payment Status
+            str(payment_date),  # K: Payment Date
+            payment_type,       # L: Payment Type (NEW)
+            notes               # M: Notes (NEW)
         ]
         
         sh.append_row(new_row)
-        st.sidebar.success(f"Added! Final Total: ${final_total:,.2f}")
+        st.sidebar.success(f"Added! Method: {payment_type}")
         st.rerun()
 
 
@@ -93,7 +96,16 @@ if not df.empty:
     k2.metric("Total Discounts", f"-${df['Adjustments'].sum():,.2f}")
     k3.metric("Items Sold", int(df['Quantity'].sum()))
 
+# --- 3. DATA PROCESSING ---
+# ... (Keep your previous numeric conversion logic for Amount/Quantity) ...
 
+if not df.empty:
+    st.subheader("Payment Method Breakdown")
+    # Group by Payment Type
+    pay_stats = df.groupby("Payment Type")["Amount"].sum().reset_index()
+    fig_pay = px.pie(pay_stats, values="Amount", names="Payment Type", hole=0.4, 
+                     title="Revenue by Payment Type")
+    st.plotly_chart(fig_pay, use_container_width=True)
     
 
   # --- 4. DELETE LOGIC ---
@@ -109,22 +121,24 @@ if st.button("Delete Permanently", type="primary"):
     st.success("Deleted!")
     st.rerun()
 
-# --- 5. EDIT LOGIC (BULK EDIT) ---
-st.subheader("✏️ Edit Records")
-# The data editor will show all 11 columns
-edited_df = st.data_editor(df, use_container_width=True, hide_index=False)
+# --- 5. EDIT LOGIC ---
+st.subheader("✏️ Bulk Edit All Records")
+edited_df = st.data_editor(df, use_container_width=True)
 
 if st.button("💾 Save All Edits"):
     save_df = edited_df.copy()
-    save_df['Date'] = save_df['Date'].dt.strftime('%Y-%m-%d')
-    save_df['Payment Date'] = save_df['Payment Date'].dt.strftime('%Y-%m-%d')
+    # Format dates correctly for Google Sheets
+    save_df['Date'] = pd.to_datetime(save_df['Date']).dt.strftime('%Y-%m-%d')
+    save_df['Payment Date'] = pd.to_datetime(save_df['Payment Date']).dt.strftime('%Y-%m-%d')
+    
+    # Fill empty notes with empty string to avoid API errors
+    save_df['Notes'] = save_df['Notes'].fillna("")
     
     sh.clear()
-    sh.update('A1', [df.columns.values.tolist()]) # Headers
-    sh.update('A2', save_df.values.tolist())      # Data
-    st.success("Google Sheet Updated!")
+    sh.update('A1', [save_df.columns.values.tolist()]) # Headers
+    sh.update('A2', save_df.values.tolist())          # Data
+    st.success("Google Sheet Fully Synced!")
     st.rerun()
-
 
 
 
