@@ -44,8 +44,7 @@ if submit:
     total_calculated = unit_price * quantity
     # Order: Date, Item Name, Category, Size, Quantity, Unit Price, Amount, Customer, Status
     new_row = [
-        str(date), item, category, size, quantity, 
-        unit_price, total_calculated, customer, status
+        str(date), customer,item,category,quantity,amount,Status,Size,unit_price,adjustments,payment_type,notes,payment_date
     ]
     sh.append_row(new_row)
     st.sidebar.success(f"Saved! Total: ${total_calculated:,.2f}")
