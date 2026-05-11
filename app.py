@@ -114,16 +114,21 @@ else: # Quarterly
 fig_time = px.line(time_df, x=x_axis, y="Amount", markers=True)
 st.plotly_chart(fig_time, use_container_width=True)
 
-# Show Raw Data
+# --- 5. RAW DATA DISPLAY ---
 with st.expander("View Raw Data Table"):
-    # Create a copy so we don't break the original data types for charts
+    # 1. Create a copy for display so we don't break the charts
     display_df = df.copy()
     
-    # Format the Date column for the UI
+    # 2. Sort by date first (so the most recent sales are at the top)
+    display_df = display_df.sort_values("Date", ascending=False)
+    
+    # 3. Reformat the Date column to your preferred string format
+    # This changes the look to DD-MM-YYYY
     display_df['Date'] = display_df['Date'].dt.strftime('%d-%m-%Y')
     
-    # Show the table sorted by date
+    # 4. Show the table
     st.dataframe(
-        display_df.sort_values("Date", ascending=False), 
-        use_container_width=True
+        display_df, 
+        use_container_width=True,
+        hide_index=True  # Optional: hides the index column for a cleaner look
     )
