@@ -38,20 +38,17 @@ with st.sidebar.form("entry_form", clear_on_submit=True):
     
     submit = st.form_submit_button("Submit Sale")
     
-    if submit:
-        if customer and item:
-            # THE CALCULATION: Multiply Unit Price by Quantity
-            total_amount = unit_price * quantity
-            
-            # Prepare the row for Google Sheets
-            # Order: Date, Item Name, Category, Size, Quantity, Amount, Customer Name, Payment Status
-            new_row = [str(date), item, category, size, quantity, total_amount, customer, status]
-            
-            sh.append_row(new_row)
-            st.sidebar.success(f"Added! Total: {total_amount:.2f}")
-            st.rerun()
-        else:
-            st.sidebar.error("Customer and Item Name are required.")
+  # Updated append_row logic
+if submit:
+    total_calculated = unit_price * quantity
+    # Order: Date, Item Name, Category, Size, Quantity, Unit Price, Amount, Customer, Status
+    new_row = [
+        str(date), item, category, size, quantity, 
+        unit_price, total_calculated, customer, status
+    ]
+    sh.append_row(new_row)
+    st.sidebar.success(f"Saved! Total: ${total_calculated:,.2f}")
+    st.rerun()
 
 # --- 3. DATA PROCESSING ---
 raw_data = sh.get_all_records()
