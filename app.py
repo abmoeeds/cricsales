@@ -93,6 +93,17 @@ with col2:
     fig_item = px.pie(item_counts, values="Count", names="Item Name", hole=0.4)
     st.plotly_chart(fig_item, use_container_width=True)
 
+# New Metric: Total Items Sold
+total_items = df['Quantity'].sum()
+st.metric("Total Items Sold", int(total_items))
+
+# Updated Chart: Sales vs Quantity
+fig_qty = px.bar(df.groupby("Category")[["Amount", "Quantity"]].sum().reset_index(), 
+                 x="Category", y="Quantity", title="Quantity Sold by Category")
+st.plotly_chart(fig_qty, use_container_width=True)
+
+
+
 # Row 2: Time Aggregates
 st.subheader("Time-Based Aggregates")
 view_option = st.radio("Select View:", ["Daily", "Weekly", "Monthly", "Quarterly"], horizontal=True)
