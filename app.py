@@ -24,14 +24,18 @@ sh = client.open_by_key(SHEET_ID).sheet1
 st.sidebar.header("Add New Sale")
 with st.sidebar.form("entry_form", clear_on_submit=True):
     date = st.date_input("Sale Date")
+    customer = st.text_input("Customer Name")  # New Field
+    item = st.text_input("Item Name")          # New Field
     category = st.selectbox("Category", ["Bats", "Balls", "Gloves", "Pads", "Helmets"])
     amount = st.number_input("Amount", min_value=0.0, step=10.0)
     status = st.selectbox("Payment Status", ["Paid", "Pending", "Cancelled"])
     
     submit = st.form_submit_button("Submit Sale")
     if submit:
-        sh.append_row([str(date), category, amount, status])
-        st.sidebar.success("Data Saved!")
+        # Update the row to include the new fields
+        # Ensure the order matches your Google Sheet columns!
+        sh.append_row([str(date), customer, item, category, amount, status])
+        st.sidebar.success(f"Sale for {customer} saved!")
         st.rerun()
 
 # --- 3. DATA PROCESSING & AGGREGATION ---
