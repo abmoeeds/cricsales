@@ -41,15 +41,30 @@ with st.sidebar.form("entry_form", clear_on_submit=True):
     
   # Updated append_row logic
 if submit:
-    total_calculated = unit_price * quantity
-    # Order: Date, Item Name, Category, Size, Quantity, Unit Price, Amount, Customer, Status
-    new_row = [
-        str(date), customer,item,category,quantity,amount,Status,Size,unit_price,adjustments,payment_type,notes,payment_date
-    ]
-    sh.append_row(new_row)
-    st.sidebar.success(f"Saved! Total: ${total_calculated:,.2f}")
-    st.rerun()
-
+    if customer and item:
+        # 1. Perform the calculation
+        total_calculated = unit_price * quantity
+        
+        # 2. Build the list to match the sheet's columns EXACTLY
+        # Make sure the order here matches the table above
+        new_row = [
+            str(date),          # A: Date
+            item,               # B: Item Name
+            category,           # C: Category
+            size,               # D: Size
+            quantity,           # E: Quantity
+            unit_price,         # F: Unit Price
+            total_calculated,   # G: Amount (Total)
+            customer,           # H: Customer Name
+            status              # I: Payment Status
+        ]
+        
+        try:
+            sh.append_row(new_row)
+            st.sidebar.success(f"Added sale for {customer}!")
+            st.rerun()
+        except Exception as e:
+            st.sidebar.error(f"Error writing to sheet: {e}")
 
 
 # --- 3. DATA PROCESSING ---
