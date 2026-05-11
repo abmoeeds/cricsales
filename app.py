@@ -46,7 +46,7 @@ with st.sidebar.form("entry_form", clear_on_submit=True):
         if customer and item:
             # IMPORTANT: This list must match the EXACT order of columns in your Google Sheet
             # Assuming order: Date, Item Name, Category, Size, Quantity, Amount, Customer Name, Payment Status
-            new_row = [str(date), customer,item,category,amount,payment Status,Size,quantity,unit Amount,adjustments,payment type,notes]
+            new_row = [str(date), customer,item,category,amount,status,size,quantity,unitAmount,adjustments,ptype,notes]
             
             sh.append_row(new_row)
             st.sidebar.success(f"Record for {customer} added!")
