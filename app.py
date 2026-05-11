@@ -12,9 +12,13 @@ scope = ["https://www.googleapis.com/auth/spreadsheets"]
 creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
 client = gspread.authorize(creds)
 
+# Use the ID instead of the name
+SHEET_ID = "1h2A8Hj0Q3-UVl_JTgBetMGjae6k01Ei2upPSKVJZLX0" 
+sh = client.open_by_key(SHEET_ID).sheet1
+
 # Open the sheet (Make sure the Sheet Name matches exactly)
-SHEET_NAME = "Cricket Sales" 
-sh = client.open(SHEET_NAME).sheet1
+#SHEET_NAME = "Cricket Sales" 
+#sh = client.open(SHEET_NAME).sheet1
 
 # --- 2. DATA ENTRY SECTION ---
 st.sidebar.header("Add New Sale")
