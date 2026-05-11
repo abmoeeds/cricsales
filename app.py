@@ -259,7 +259,7 @@ with st.expander("📝 Bulk Edit Spreadsheet"):
         },
         use_container_width=True,
         hide_index=True
-        
+    )
     st.info("You can edit cells directly in the table below. Click 'Save' to sync with Google Sheets.")
     edited_df = st.data_editor(df, use_container_width=True, hide_index=True)
     
