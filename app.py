@@ -21,50 +21,50 @@ sh = client.open_by_key(SHEET_ID).sheet1
 #sh = client.open(SHEET_NAME).sheet1
 
 # --- 2. DATA ENTRY SECTION ---
+# --- 2. DATA ENTRY SECTION ---
 st.sidebar.header("📝 New Sale Entry")
 
 with st.sidebar.form("entry_form", clear_on_submit=True):
     date = st.date_input("Sale Date")
     customer = st.text_input("Customer Name")
     item = st.text_input("Item Name")
-    category = st.selectbox("Category", ["Helmet","Shoes","Tennis Ball","Wooden Stumps","Toe Guard","Bat Grip","Bat Handle Replacement","Bat Refurbishing","Bat Stickers","Cricket Bat English Willow","Batting Gloves","Batting Pads","Thigh Pads","Abdominal Guard","Kit Bag","Red Ball","Bat Knocking","SG GLOVES","NIVI PU BALLS","SS COMPLETE KIT","BAT CRACK REPAIR","Bat Binding","BAT REPAIR","Cricket Bat Kashmir Willow","Mallet","Scuff Sheet","Batting Inner Gloves","Plastic Stumps","supporter","Arm Guard","cricket wear","Bat weight Reduction","Other Bats"
-])
-    size = st.selectbox("Size", ["N/A", "Small", "Medium", "Large", "Full Size", "Harrow", "6", "5", "4","7", "8", "9", "10", "11","12"])
+    category = st.selectbox("Category", ["Bats", "Balls", "Gloves", "Pads", "Helmets", "Clothing", "Accessories"])
+    size = st.selectbox("Size", ["N/A", "Small", "Medium", "Large", "Full Size", "Harrow", "6", "5", "4"])
     
-    # Input Quantity and Unit Price
     quantity = st.number_input("Quantity", min_value=1, step=1, value=1)
-    unit_price = st.number_input("Unit Price", min_value=0.0, step=1.0, format="%.2f")
+    unit_price = st.number_input("Unit Price", min_value=0.0, step=1.0)
+    # NEW: Adjustments/Discount
+    discount = st.number_input("Adjustment / Discount (-)", min_value=0.0, step=1.0, help="Amount to subtract from total")
     
     status = st.selectbox("Payment Status", ["Paid", "Pending", "Cancelled"])
+    # NEW: Payment Date
+    payment_date = st.date_input("Payment Date (If Paid)")
     
     submit = st.form_submit_button("Submit Sale")
     
-  # Updated append_row logic
-if submit:
-    if customer and item:
-        # 1. Perform the calculation
-        total_calculated = unit_price * quantity
+    if submit:
+        # CALCULATION logic
+        total_before_discount = unit_price * quantity
+        final_total = total_before_discount - discount
         
-        # 2. Build the list to match the sheet's columns EXACTLY
-        # Make sure the order here matches the table above
+        # Prepare row for Google Sheet (11 Columns Total)
         new_row = [
-            str(date),          # A: Date
-            item,               # B: Item Name
-            category,           # C: Category
-            size,               # D: Size
-            quantity,           # E: Quantity
-            unit_price,         # F: Unit Price
-            total_calculated,   # G: Amount (Total)
-            customer,           # H: Customer Name
-            status              # I: Payment Status
+            str(date),          # A
+            item,               # B
+            category,           # C
+            size,               # D
+            int(quantity),      # E
+            float(unit_price),  # F
+            float(discount),    # G (NEW)
+            float(final_total), # H (UPDATED)
+            customer,           # I
+            status,             # J
+            str(payment_date)   # K (NEW)
         ]
         
-        try:
-            sh.append_row(new_row)
-            st.sidebar.success(f"Added sale for {customer}!")
-            st.rerun()
-        except Exception as e:
-            st.sidebar.error(f"Error writing to sheet: {e}")
+        sh.append_row(new_row)
+        st.sidebar.success(f"Added! Final Total: ${final_total:,.2f}")
+        st.rerun()
 
 
 # --- 3. DATA PROCESSING ---
@@ -72,56 +72,58 @@ raw_data = sh.get_all_records()
 df = pd.DataFrame(raw_data)
 
 if not df.empty:
-    # Standardize data types
+    # Convert Dates
     df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+    df['Payment Date'] = pd.to_datetime(df['Payment Date'], errors='coerce')
     df = df.dropna(subset=['Date']) 
-    df['Unit Price'] = pd.to_numeric(df['Unit Price'], errors='coerce').fillna(0)
-    df['Quantity'] = pd.to_numeric(df['Quantity'], errors='coerce').fillna(0)
-    df['Amount'] = df['Unit Price'] * df['Quantity']
 
-    # CRITICAL: Define display_df HERE so it's available for everything below
-    display_df = df.sort_values("Date", ascending=False).copy()
+    # Force Numeric Types
+    numeric_cols = ['Unit Price', 'Quantity', 'Adjustments', 'Amount']
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-    # --- 4. MANAGE RECORDS (DELETE) ---
-    st.markdown("---")
-    st.subheader("🗑️ Delete a Record")
+    # Re-calculate to ensure dashboard accuracy
+    df['Amount'] = (df['Unit Price'] * df['Quantity']) - df['Adjustments']
+
+    # --- Metrics Section ---
+    st.subheader("Key Performance Indicators")
+    k1, k2, k3 = st.columns(3)
+    k1.metric("Net Revenue", f"${df['Amount'].sum():,.2f}")
+    k2.metric("Total Discounts", f"-${df['Adjustments'].sum():,.2f}")
+    k3.metric("Items Sold", int(df['Quantity'].sum()))
+
+
     
-    # Selection box for picking a record to delete
-    # We use the original index to find the exact row in Google Sheets
-    to_delete = st.selectbox(
-        "Select Sale to Remove:",
-        options=display_df.index,
-        format_func=lambda x: f"{display_df.loc[x, 'Date'].strftime('%d-%m-%Y')} | {display_df.loc[x, 'Customer Name']} | {display_df.loc[x, 'Item Name']}"
-    )
 
-    if st.button("Delete Permanently", type="primary"):
-        # Google Sheets is 1-indexed + 1 row for Header = Index + 2
-        # However, since display_df is sorted, we must use the ORIGINAL index from 'df'
-        actual_row = to_delete + 2 
-        sh.delete_rows(actual_row)
-        st.success("Record Deleted!")
-        st.rerun()
+  # --- 4. DELETE LOGIC ---
+st.markdown("---")
+st.subheader("🗑️ Delete Record")
+display_df = df.sort_values("Date", ascending=False).copy()
+to_delete = st.selectbox("Select Record:", options=display_df.index,
+                         format_func=lambda x: f"{display_df.loc[x, 'Date'].strftime('%d-%m-%Y')} - {display_df.loc[x, 'Customer Name']}")
 
-    # --- 5. DATA EDITOR (FOR EDITING) ---
-    st.markdown("---")
-    st.subheader("✏️ Edit Records")
-    st.write("Change any cell below and click 'Save' to update the Google Sheet.")
+if st.button("Delete Permanently", type="primary"):
+    # Target row = Index + 2 (1 for header, 1 for 0-indexing)
+    sh.delete_rows(int(to_delete) + 2)
+    st.success("Deleted!")
+    st.rerun()
+
+# --- 5. EDIT LOGIC (BULK EDIT) ---
+st.subheader("✏️ Edit Records")
+# The data editor will show all 11 columns
+edited_df = st.data_editor(df, use_container_width=True, hide_index=False)
+
+if st.button("💾 Save All Edits"):
+    save_df = edited_df.copy()
+    save_df['Date'] = save_df['Date'].dt.strftime('%Y-%m-%d')
+    save_df['Payment Date'] = save_df['Payment Date'].dt.strftime('%Y-%m-%d')
     
-    # The Data Editor is the easiest way to handle EDITS
-    edited_df = st.data_editor(df, use_container_width=True, hide_index=True)
-    
-    if st.button("💾 Save All Edits"):
-        # Convert dates back to strings for Google Sheets
-        save_df = edited_df.copy()
-        save_df['Date'] = save_df['Date'].dt.strftime('%Y-%m-%d')
-        
-        # Overwrite Sheet: Keep headers, replace data
-        sh.clear()
-        sh.update('A1', [df.columns.values.tolist()]) # Headers
-        sh.update('A2', save_df.values.tolist())      # Data
-        st.success("Sheet Updated!")
-        st.rerun()
-
+    sh.clear()
+    sh.update('A1', [df.columns.values.tolist()]) # Headers
+    sh.update('A2', save_df.values.tolist())      # Data
+    st.success("Google Sheet Updated!")
+    st.rerun()
 
 
 
