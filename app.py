@@ -7,24 +7,28 @@ from fpdf import FPDF
 import io
 import numpy as np
 
+# Custom CSS to make the app look better on iPhone
 st.markdown("""
     <style>
-        /* Make buttons bigger for thumbs */
+        /* Make buttons bigger and easier to tap with thumbs */
         .stButton button {
             width: 100%;
-            height: 3em;
-            margin-top: 10px;
+            height: 3.5em;
+            border-radius: 10px;
+            font-weight: bold;
         }
-        /* Fix the data editor height for mobile scrolling */
-        .stDataEditor {
-            height: 400px;
+        
+        /* Improve spacing for mobile metrics */
+        [data-testid="stMetricValue"] {
+            font-size: 1.8rem !important;
         }
-        /* Increase base font size for readability */
-        html {
-            font-size: 18px;
+
+        /* Make data editor rows taller for easier tapping */
+        .stDataEditor div {
+            font-size: 14px;
         }
     </style>
-""", unsafe_byte_stream=True)
+""", unsafe_allow_html=True) # <-- Corrected parameter name
 
 
 
