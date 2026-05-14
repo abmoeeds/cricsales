@@ -310,21 +310,21 @@ def create_pdf(customer_name, customer_data):
     pdf = FPDF()
     pdf.add_page()
     
-    # Company Header
+    # 1. Company Header
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(0, 10, "SMZ Sports", ln=True, align='C')
     pdf.set_font("Arial", '', 10)
     pdf.cell(0, 5, "149 St Pauls Avenue, Slough SL2 5EN", ln=True, align='C')
     pdf.ln(10)
     
-    # Invoice Title & Customer Info
+    # 2. Invoice Title & Customer Info
     pdf.set_font("Arial", 'B', 14)
     pdf.cell(0, 10, f"INVOICE: {customer_name}", ln=True)
     pdf.set_font("Arial", '', 12)
     pdf.cell(0, 10, f"Date: {pd.Timestamp.now().strftime('%d/%m/%Y')}", ln=True)
     pdf.ln(5)
     
-    # Table Header
+    # 3. Table Header
     pdf.set_fill_color(200, 220, 255)
     pdf.set_font("Arial", 'B', 10)
     pdf.cell(70, 10, "Item", 1, 0, 'C', True)
@@ -332,20 +332,29 @@ def create_pdf(customer_name, customer_data):
     pdf.cell(40, 10, "Unit Price", 1, 0, 'C', True)
     pdf.cell(40, 10, "Total", 1, 1, 'C', True)
     
-    # Table Content
+    # 4. Table Content
     pdf.set_font("Arial", '', 10)
     total_invoice_amount = 0
     for _, row in customer_data.iterrows():
         pdf.cell(70, 10, str(row['Item Name']), 1)
         pdf.cell(30, 10, str(int(row['Quantity'])), 1, 0, 'C')
-        pdf.cell(40, 10, f"£{row['Unit Price']:.2f}", 1, 0, 'R')
-        pdf.cell(40, 10, f"£{row['Amount']:.2f}", 1, 1, 'R')
+        pdf.cell(40, 10, f"GBP {row['Unit Price']:.2f}", 1, 0, 'R')
+        pdf.cell(40, 10, f"GBP {row['Amount']:.2f}", 1, 1, 'R')
         total_invoice_amount += row['Amount']
         
-    # Grand Total
+    # 5. Grand Total
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(140, 10, "Grand Total", 1, 0, 'R')
-    pdf.cell(40, 10, f"£{total_invoice_amount:.2f}", 1, 1, 'R')
+    pdf.cell(40, 10, f"GBP {total_invoice_amount:.2f}", 1, 1, 'R')
+    
+    # 6. FOOTER: Thank You Message
+    # Move to 20mm from bottom
+    pdf.set_y(-40) 
+    pdf.set_font("Arial", 'I', 10) # 'I' for Italic
+    pdf.cell(0, 10, "Thank you for your business!", ln=True, align='C')
+    
+    # Optional: Add a line for a signature or stamp
+    pdf.line(70, pdf.get_y(), 140, pdf.get_y())
     
     return pdf.output(dest='S').encode('latin-1')
 
