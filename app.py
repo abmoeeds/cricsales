@@ -7,8 +7,30 @@ from fpdf import FPDF
 import io
 import numpy as np
 
+st.markdown("""
+    <style>
+        /* Make buttons bigger for thumbs */
+        .stButton button {
+            width: 100%;
+            height: 3em;
+            margin-top: 10px;
+        }
+        /* Fix the data editor height for mobile scrolling */
+        .stDataEditor {
+            height: 400px;
+        }
+        /* Increase base font size for readability */
+        html {
+            font-size: 18px;
+        }
+    </style>
+""", unsafe_byte_stream=True)
+
+
+
 # --- 1. CONFIG & CONNECTION ---
-st.set_page_config(page_title="Sales Tracker", layout="wide")
+st.set_page_config(page_title="SMZ Sports", layout="wide", initial_sidebar_state="collapsed")
+#st.set_page_config(page_title="Sales Tracker", layout="wide")
 
 # Connect using Streamlit Secrets
 scope = ["https://www.googleapis.com/auth/spreadsheets"]
