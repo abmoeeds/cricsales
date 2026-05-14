@@ -165,9 +165,16 @@ if not df.empty:
 
 # Row 1: Category Breakdown
 st.subheader("Total Sales by Category")
-cat_total = df.groupby("Category")["Amount"].sum().reset_index()
-fig_cat = px.bar(cat_total, x="Category", y="Amount", color="Category", text_auto=True)
+cat_stats = df.groupby("Category")["Amount"].sum().reset_index()
+fig_cat = px.bar(cat_stats, x="Category", y="Amount", title="Revenue by Category")
+fig_cat.update_layout(yaxis_tickprefix='£')
 st.plotly_chart(fig_cat, use_container_width=True)
+
+
+
+#cat_total = df.groupby("Category")["Amount"].sum().reset_index()
+#fig_cat = px.bar(cat_total, x="Category", y="Amount", color="Category", text_auto=True)
+#st.plotly_chart(fig_cat, use_container_width=True)
 
 # Row 1.5: Top Customers & Items
 col1, col2 = st.columns(2)
