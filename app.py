@@ -37,9 +37,9 @@ with st.popover("➕ Add New Sale Record", use_container_width=True):
             date = st.date_input("Sale Date")
             customer = st.text_input("Customer Name")
             item = st.text_input("Item Name")
-            category = st.selectbox("Category", ["Bats", "Balls", "Gloves", "Pads", "Helmets", "Clothing", "Accessories"])
+            category = st.selectbox("Category", ["Helmet","Shoes","Tennis Ball","Wooden Stumps","Toe Guard","Bat Grip","Bat Handle Replacement","Bat Refurbishing","Bat Stickers","Cricket Bat English Willow","Batting Gloves","Batting Pads","Thigh Pads","Abdominal Guard","Kit Bag","Red Ball","Bat Knocking","SG GLOVES","NIVI PU BALLS","SS COMPLETE KIT","BAT CRACK REPAIR","Bat Binding","BAT REPAIR","Cricket Bat Kashmir Willow","Mallet","Scuff Sheet","Batting Inner Gloves","Plastic Stumps","supporter","Arm Guard","cricket wear","Bat weight Reduction","Bats"])
         with col2:
-            size = st.selectbox("Size", ["N/A", "Small", "Medium", "Large", "Full Size", "Harrow", "6", "5", "4"])
+            size = st.selectbox("Size", ["N/A", "Small", "Medium", "Large", "Full Size", "Harrow", "6", "5", "4", "7","8","9","10","3","11","12"])
             quantity = st.number_input("Quantity", min_value=1, step=1, value=1)
             unit_price = st.number_input("Unit Price (£)", min_value=0.0, format="%.2f")
             discount = st.number_input("Adjustment / Discount (£)", min_value=0.0, format="%.2f")
