@@ -274,32 +274,60 @@ with st.expander("🗑️ Delete a Record"):
         st.warning("Record deleted from Google Sheets.")
         st.rerun()
 
-with st.expander("📝 Bulk Edit Spreadsheet"):
-    st.data_editor(
-        df,
-        column_config={
-            "Unit Price": st.column_config.NumberColumn("Unit Price", format="£%.2f"),
-            "Adjustments": st.column_config.NumberColumn("Adjustments", format="£%.2f"),
-            "Amount": st.column_config.NumberColumn("Total Amount", format="£%.2f"),
-        },
-        use_container_width=True,
-        hide_index=True
-    )
-    st.info("You can edit cells directly in the table below. Click 'Save' to sync with Google Sheets.")
-    edited_df = st.data_editor(df, use_container_width=True, hide_index=True)
+with st.expander("📝 Filter & Bulk Edit Records"):
+    st.info("Use the filters below to find specific records, edit them in the table, and click Save.")
     
-    if st.button("💾 Save All Changes"):
-        save_df = edited_df.copy()
-        # Convert date columns back to strings safely
-        for col in ['Date', 'Payment Date']:
-            save_df[col] = pd.to_datetime(save_df[col]).dt.strftime('%Y-%m-%d')
+    # 1. Create Filter Columns
+    f_col1, f_col2 = st.columns(2)
+    
+    with f_col1:
+        # Get unique customers for the filter
+        cust_list = ["All"] + sorted(df['Customer Name'].unique().tolist())
+        filter_cust = st.selectbox("Filter by Customer:", cust_list)
         
-        sh.clear()
-        sh.update('A1', [save_df.columns.values.tolist()])
-        sh.update('A2', save_df.values.tolist())
-        st.success("Database synced successfully!")
-        st.rerun()
+    with f_col2:
+        # Get unique dates for the filter
+        date_list = ["All"] + sorted(df['Date'].dt.strftime('%Y-%m-%d').unique().tolist(), reverse=True)
+        filter_date = st.selectbox("Filter by Date:", date_list)
 
+    # 2. Apply Filtering to the DataFrame
+    filtered_df = df.copy()
+    if filter_cust != "All":
+        filtered_df = filtered_df[filtered_df['Customer Name'] == filter_cust]
+    if filter_date != "All":
+        filtered_df = filtered_df[filtered_df['Date'].dt.strftime('%Y-%m-%d') == filter_date]
+
+    # 3. Display the Data Editor with the Filtered Results
+    # We show the index so we know which original rows to update
+    edited_filtered_df = st.data_editor(
+        filtered_df, 
+        use_container_width=True, 
+        hide_index=False,
+        column_config={
+            "Amount": st.column_config.NumberColumn("Total Amount", format="£%.2f"),
+            "Unit Price": st.column_config.NumberColumn("Unit Price", format="£%.2f"),
+            "Adjustments": st.column_config.NumberColumn("Adjustments", format="£%.2f")
+        }
+    )
+    
+    if st.button("💾 Save Changes to Google Sheet", use_container_width=True):
+        # Update the main 'df' with the changes made in 'edited_filtered_df'
+        df.update(edited_filtered_df)
+        
+        # Prepare for upload
+        save_df = df.copy()
+        save_df['Date'] = save_df['Date'].dt.strftime('%Y-%m-%d')
+        save_df['Payment Date'] = save_df['Payment Date'].dt.strftime('%Y-%m-%d')
+        
+        # Overwrite the sheet with the master 'df' (which now contains the edits)
+        try:
+            sh.clear()
+            sh.update('A1', [save_df.columns.values.tolist()]) # Headers
+            sh.update('A2', save_df.values.tolist())          # Data
+            st.success(f"Successfully updated records for {filter_cust if filter_cust != 'All' else 'all filtered items'}!")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Failed to update Google Sheets: {e}")
 
 
 
