@@ -5,6 +5,7 @@ import plotly.express as px
 from google.oauth2.service_account import Credentials
 from fpdf import FPDF
 import io
+import numpy as np
 
 # --- 1. CONFIG & CONNECTION ---
 st.set_page_config(page_title="Sales Tracker", layout="wide")
