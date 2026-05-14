@@ -74,7 +74,13 @@ with st.popover("➕ Add New Sale Record", use_container_width=True):
 raw_data = sh.get_all_records()
 df = pd.DataFrame(raw_data)
 
+df.columns = df.columns.str.strip() # Removes accidental spaces
+df.columns = df.columns.str.title() # Forces "category" to become "Category"
+
+
 if not df.empty:
+    # Now this line will work perfectly!
+    cat_total = df.groupby("Category")["Amount"].sum().reset_index()
     # Convert Dates
     df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
     df['Payment Date'] = pd.to_datetime(df['Payment Date'], errors='coerce')
