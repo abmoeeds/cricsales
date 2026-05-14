@@ -3,6 +3,8 @@ import gspread
 import pandas as pd
 import plotly.express as px
 from google.oauth2.service_account import Credentials
+from fpdf import FPDF
+import io
 
 # --- 1. CONFIG & CONNECTION ---
 st.set_page_config(page_title="Sales Tracker", layout="wide")
@@ -297,3 +299,85 @@ with st.expander("📝 Bulk Edit Spreadsheet"):
         sh.update('A2', save_df.values.tolist())
         st.success("Database synced successfully!")
         st.rerun()
+
+
+
+
+
+
+# --- INVOICE GENERATOR FUNCTION ---
+def create_pdf(customer_name, customer_data):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Company Header
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(0, 10, "SMZ Sports", ln=True, align='C')
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(0, 5, "149 St Pauls Avenue, Slough SL2 5EN", ln=True, align='C')
+    pdf.ln(10)
+    
+    # Invoice Title & Customer Info
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 10, f"INVOICE: {customer_name}", ln=True)
+    pdf.set_font("Arial", '', 12)
+    pdf.cell(0, 10, f"Date: {pd.Timestamp.now().strftime('%d/%m/%Y')}", ln=True)
+    pdf.ln(5)
+    
+    # Table Header
+    pdf.set_fill_color(200, 220, 255)
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(70, 10, "Item", 1, 0, 'C', True)
+    pdf.cell(30, 10, "Qty", 1, 0, 'C', True)
+    pdf.cell(40, 10, "Unit Price", 1, 0, 'C', True)
+    pdf.cell(40, 10, "Total", 1, 1, 'C', True)
+    
+    # Table Content
+    pdf.set_font("Arial", '', 10)
+    total_invoice_amount = 0
+    for _, row in customer_data.iterrows():
+        pdf.cell(70, 10, str(row['Item Name']), 1)
+        pdf.cell(30, 10, str(int(row['Quantity'])), 1, 0, 'C')
+        pdf.cell(40, 10, f"£{row['Unit Price']:.2f}", 1, 0, 'R')
+        pdf.cell(40, 10, f"£{row['Amount']:.2f}", 1, 1, 'R')
+        total_invoice_amount += row['Amount']
+        
+    # Grand Total
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(140, 10, "Grand Total", 1, 0, 'R')
+    pdf.cell(40, 10, f"£{total_invoice_amount:.2f}", 1, 1, 'R')
+    
+    return pdf.output(dest='S').encode('latin-1')
+
+# --- INVOICE UI SECTION ---
+st.markdown("---")
+st.subheader("🧾 Generate Customer Invoice")
+
+col_inv1, col_inv2 = st.columns([2, 1])
+
+with col_inv1:
+    # Select distinct customers from your data
+    all_customers = sorted(df['Customer Name'].unique())
+    selected_customer = st.selectbox("Select Customer for Invoice", all_customers)
+
+with col_inv2:
+    st.write("##") # Alignment
+    if selected_customer:
+        # Filter data for this specific customer
+        customer_items = df[df['Customer Name'] == selected_customer]
+        
+        # Generate the PDF in memory
+        pdf_bytes = create_pdf(selected_customer, customer_items)
+        
+        st.download_button(
+            label="📥 Download PDF Invoice",
+            data=pdf_bytes,
+            file_name=f"Invoice_{selected_customer.replace(' ', '_')}.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
+
+# Show a preview of what's going into the invoice
+if selected_customer:
+    st.write(f"Previewing items for **{selected_customer}**:")
+    st.dataframe(customer_items[['Date', 'Item Name', 'Quantity', 'Amount']], use_container_width=True, hide_index=True)
