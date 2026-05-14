@@ -324,23 +324,36 @@ with st.expander("📝 Filter & Bulk Edit Records"):
     )
     
     if st.button("💾 Save Changes to Google Sheet", use_container_width=True):
-        # Update the main 'df' with the changes made in 'edited_filtered_df'
+        # 1. Sync the edits into the master dataframe
         df.update(edited_filtered_df)
         
-        # Prepare for upload
+        # 2. Prepare the data for JSON (The "Sanity Check")
         save_df = df.copy()
-        save_df['Date'] = save_df['Date'].dt.strftime('%Y-%m-%d')
-        save_df['Payment Date'] = save_df['Payment Date'].dt.strftime('%Y-%m-%d')
         
-        # Overwrite the sheet with the master 'df' (which now contains the edits)
+        # Convert dates to strings and handle empty values
+        for col in save_df.columns:
+            if 'Date' in col:
+                save_df[col] = pd.to_datetime(save_df[col], errors='coerce').dt.strftime('%Y-%m-%d')
+        
+        # Replace ALL problematic values (NaN, Infinity) with safe values
+        save_df = save_df.replace([np.inf, -np.inf], np.nan).fillna("")
+
+        # 3. THE SAFETY LOCK
+        # We only clear the sheet if we successfully created the data list
         try:
-            sh.clear()
-            sh.update('A1', [save_df.columns.values.tolist()]) # Headers
-            sh.update('A2', save_df.values.tolist())          # Data
-            st.success(f"Successfully updated records for {filter_cust if filter_cust != 'All' else 'all filtered items'}!")
+            data_to_upload = save_df.values.tolist()
+            header_to_upload = [save_df.columns.values.tolist()]
+            
+            # ONLY NOW do we touch the Google Sheet
+            sh.clear() 
+            sh.update('A1', header_to_upload)
+            sh.update('A2', data_to_upload)
+            
+            st.success("Changes saved successfully!")
             st.rerun()
+            
         except Exception as e:
-            st.error(f"Failed to update Google Sheets: {e}")
+            st.error(f"Save aborted to protect your data! Error: {e}")
 
 
 
