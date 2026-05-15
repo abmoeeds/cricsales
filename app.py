@@ -94,17 +94,6 @@ with st.popover("➕ Add New Sale Record", use_container_width=True):
 
 
 
-st.subheader("Business Split: Goods vs Services")
-t1, t2 = st.columns(2)
-
-# Calculate totals
-goods_total = df[df['Type'] == "📦 Goods"]['Amount'].sum()
-services_total = df[df['Type'] == "🛠️ Service"]['Amount'].sum()
-
-with t1:
-    st.metric("Total Goods Revenue", f"£{goods_total:,.2f}")
-with t2:
-    st.metric("Total Service Revenue", f"£{services_total:,.2f}")
 
 # Optional: A small bar chart to visualize the split
 fig_split = px.bar(
@@ -172,6 +161,17 @@ if not df.empty:
     # Apply the classification
     df['Type'] = df['Category'].apply(classify_type)
 
+st.subheader("Business Split: Goods vs Services")
+t1, t2 = st.columns(2)
+
+# Calculate totals
+goods_total = df[df['Type'] == "📦 Goods"]['Amount'].sum()
+services_total = df[df['Type'] == "🛠️ Service"]['Amount'].sum()
+
+with t1:
+    st.metric("Total Goods Revenue", f"£{goods_total:,.2f}")
+with t2:
+    st.metric("Total Service Revenue", f"£{services_total:,.2f}")
 
     # --- Metrics Section ---
    # st.subheader("Key Performance Indicators")
