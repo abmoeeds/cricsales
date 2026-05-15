@@ -54,7 +54,7 @@ sh = client.open_by_key(SHEET_ID).sheet1
 
 
 # --- 1. HEADER & TOP ACTIONS ---
-st.title("🏏 Cricket Sales Analytics")
+st.title("🏏 SMZ Sports Cricket Sales Analytics")
 
 # Floating Action Button for New Sale
 with st.popover("➕ Add New Sale Record", use_container_width=True):
@@ -94,7 +94,39 @@ with st.popover("➕ Add New Sale Record", use_container_width=True):
 
 
 
+st.subheader("Business Split: Goods vs Services")
+t1, t2 = st.columns(2)
 
+# Calculate totals
+goods_total = df[df['Type'] == "📦 Goods"]['Amount'].sum()
+services_total = df[df['Type'] == "🛠️ Service"]['Amount'].sum()
+
+with t1:
+    st.metric("Total Goods Revenue", f"£{goods_total:,.2f}")
+with t2:
+    st.metric("Total Service Revenue", f"£{services_total:,.2f}")
+
+# Optional: A small bar chart to visualize the split
+fig_split = px.bar(
+    df.groupby('Type')['Amount'].sum().reset_index(),
+    x='Type', y='Amount',
+    color='Type',
+    color_discrete_map={"📦 Goods": "#00CC96", "🛠️ Service": "#636EFA"},
+    title="Revenue Distribution"
+)
+st.plotly_chart(fig_split, use_container_width=True)
+
+
+with st.expander("🔍 Detailed Service Breakdown"):
+    service_df = df[df['Type'] == "🛠️ Service"]
+    if not service_df.empty:
+        service_stats = service_df.groupby("Category").agg({
+            "Amount": "sum",
+            "Quantity": "sum"
+        }).reset_index()
+        st.table(service_stats.style.format({"Amount": "£{:.2f}"}))
+    else:
+        st.write("No service data found yet.")
 
 
 # --- 3. DATA PROCESSING ---
@@ -103,6 +135,21 @@ df = pd.DataFrame(raw_data)
 
 df.columns = df.columns.str.strip() # Removes accidental spaces
 df.columns = df.columns.str.title() # Forces "category" to become "Category"
+
+# (After your existing df cleaning code)
+    
+    # Define which categories are Services
+    service_list = ["Toe Guard","Bat Handle Replacement","Bat Refurbishing","Bat Knocking","BAT CRACK REPAIR","Bat Binding","BAT REPAIR","Bat weight Reduction"]
+    
+    # Function to classify the row
+    def classify_type(category):
+        if category in service_list:
+            return "🛠️ Service"
+        else:
+            return "📦 Goods"
+    
+    # Apply the classification
+    df['Type'] = df['Category'].apply(classify_type)
 
 
 if not df.empty:
@@ -121,6 +168,8 @@ if not df.empty:
 
     # Re-calculate to ensure dashboard accuracy
     df['Amount'] = (df['Unit Price'] * df['Quantity']) - df['Adjustments']
+
+    
 
     # --- Metrics Section ---
    # st.subheader("Key Performance Indicators")
