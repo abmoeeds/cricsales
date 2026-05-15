@@ -95,27 +95,7 @@ with st.popover("➕ Add New Sale Record", use_container_width=True):
 
 
 
-# Optional: A small bar chart to visualize the split
-fig_split = px.bar(
-    df.groupby('Type')['Amount'].sum().reset_index(),
-    x='Type', y='Amount',
-    color='Type',
-    color_discrete_map={"📦 Goods": "#00CC96", "🛠️ Service": "#636EFA"},
-    title="Revenue Distribution"
-)
-st.plotly_chart(fig_split, use_container_width=True)
 
-
-with st.expander("🔍 Detailed Service Breakdown"):
-    service_df = df[df['Type'] == "🛠️ Service"]
-    if not service_df.empty:
-        service_stats = service_df.groupby("Category").agg({
-            "Amount": "sum",
-            "Quantity": "sum"
-        }).reset_index()
-        st.table(service_stats.style.format({"Amount": "£{:.2f}"}))
-    else:
-        st.write("No service data found yet.")
 
 
 # --- 3. DATA PROCESSING ---
@@ -173,7 +153,31 @@ with t1:
 with t2:
     st.metric("Total Service Revenue", f"£{services_total:,.2f}")
 
-    # --- Metrics Section ---
+   
+# Optional: A small bar chart to visualize the split
+fig_split = px.bar(
+    df.groupby('Type')['Amount'].sum().reset_index(),
+    x='Type', y='Amount',
+    color='Type',
+    color_discrete_map={"📦 Goods": "#00CC96", "🛠️ Service": "#636EFA"},
+    title="Revenue Distribution"
+)
+st.plotly_chart(fig_split, use_container_width=True)
+
+
+with st.expander("🔍 Detailed Service Breakdown"):
+    service_df = df[df['Type'] == "🛠️ Service"]
+    if not service_df.empty:
+        service_stats = service_df.groupby("Category").agg({
+            "Amount": "sum",
+            "Quantity": "sum"
+        }).reset_index()
+        st.table(service_stats.style.format({"Amount": "£{:.2f}"}))
+    else:
+        st.write("No service data found yet.")
+
+
+# --- Metrics Section ---
    # st.subheader("Key Performance Indicators")
 #k1, k2, k3 = st.columns(3)
     #k1.metric("Net Revenue", f"${df['Amount'].sum():,.2f}")
