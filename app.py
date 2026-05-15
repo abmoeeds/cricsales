@@ -136,20 +136,6 @@ df = pd.DataFrame(raw_data)
 df.columns = df.columns.str.strip() # Removes accidental spaces
 df.columns = df.columns.str.title() # Forces "category" to become "Category"
 
-# (After your existing df cleaning code)
-    
-    # Define which categories are Services
-    service_list = ["Toe Guard","Bat Handle Replacement","Bat Refurbishing","Bat Knocking","BAT CRACK REPAIR","Bat Binding","BAT REPAIR","Bat weight Reduction"]
-    
-    # Function to classify the row
-    def classify_type(category):
-        if category in service_list:
-            return "🛠️ Service"
-        else:
-            return "📦 Goods"
-    
-    # Apply the classification
-    df['Type'] = df['Category'].apply(classify_type)
 
 
 if not df.empty:
@@ -168,8 +154,24 @@ if not df.empty:
 
     # Re-calculate to ensure dashboard accuracy
     df['Amount'] = (df['Unit Price'] * df['Quantity']) - df['Adjustments']
-
     
+    
+    # Define which categories are Services
+    service_list = ["Toe Guard","Bat Handle Replacement","Bat Refurbishing","Bat Knocking","BAT CRACK REPAIR","Bat Binding","BAT REPAIR","Bat weight Reduction"]
+    
+    # (After your existing df cleaning code)
+    
+
+    # Function to classify the row
+    def classify_type(category):
+        if category in service_list:
+            return "🛠️ Service"
+        else:
+            return "📦 Goods"
+    
+    # Apply the classification
+    df['Type'] = df['Category'].apply(classify_type)
+
 
     # --- Metrics Section ---
    # st.subheader("Key Performance Indicators")
