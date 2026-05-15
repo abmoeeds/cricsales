@@ -287,41 +287,43 @@ st.plotly_chart(fig_qty, use_container_width=True)
 
 # Row 2: Time Aggregates
 # --- 3. TIME-BASED AGGREGATES ---
-st.subheader("Time-Based Sales Analysis")
-view_choice = st.radio("Select View:", ["Daily", "Weekly", "Monthly"], horizontal=True)
 
-# 1. Create a copy and set Date as index for time-math
-time_df = df.copy()
-time_df.set_index('Date', inplace=True)
+with st.expander("🗓️ View Sales Trends Over Time"):
+    st.subheader("Time-Based Sales Analysis")
+    view_choice = st.radio("Select View:", ["Daily", "Weekly", "Monthly"], horizontal=True)
+    
+    # 1. Create a copy and set Date as index for time-math
+    time_df = df.copy()
+    time_df.set_index('Date', inplace=True)
 
-if view_choice == "Daily":
-    # Group by each day
-    agg_df = time_df.resample('D')['Amount'].sum().reset_index()
-    x_axis_label = "Date"
+    if view_choice == "Daily":
+        # Group by each day
+        agg_df = time_df.resample('D')['Amount'].sum().reset_index()
+        x_axis_label = "Date"
 
-elif view_choice == "Weekly":
-    # This solves your error! It creates weeks starting on Monday
-    agg_df = time_df.resample('W-MON')['Amount'].sum().reset_index()
-    x_axis_label = "Week Starting"
+    elif view_choice == "Weekly":
+        # This solves your error! It creates weeks starting on Monday
+        agg_df = time_df.resample('W-MON')['Amount'].sum().reset_index()
+        x_axis_label = "Week Starting"
 
-elif view_choice == "Monthly":
-    # 'ME' stands for Month End
-    agg_df = time_df.resample('ME')['Amount'].sum().reset_index()
-    x_axis_label = "Month"
+    elif view_choice == "Monthly":
+        # 'ME' stands for Month End
+        agg_df = time_df.resample('ME')['Amount'].sum().reset_index()
+        x_axis_label = "Month"
 
 # --- Plotting the Result ---
-if not agg_df.empty:
-    fig_time = px.line(
-        agg_df, 
-        x='Date', 
-        y='Amount', 
-        title=f"{view_choice} Revenue Trend",
-        markers=True
-    )
-    fig_time.update_layout(yaxis_tickprefix='£', yaxis_tickformat=',.2f')
-    st.plotly_chart(fig_time, use_container_width=True)
-else:
-    st.write("No data available for the selected period.")
+    if not agg_df.empty:
+        fig_time = px.line(
+            agg_df, 
+            x='Date', 
+            y='Amount', 
+            title=f"{view_choice} Revenue Trend",
+            markers=True
+            )
+        fig_time.update_layout(yaxis_tickprefix='£', yaxis_tickformat=',.2f')
+        st.plotly_chart(fig_time, use_container_width=True)
+    else:
+        st.write("No data available for the selected period.")
 
 
 
