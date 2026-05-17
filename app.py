@@ -211,12 +211,12 @@ if not df.empty:
 
 
 if not df.empty:
-    st.subheader("Payment Method Breakdown")
-    # Group by Payment Type
-    pay_stats = df.groupby("Payment Type")["Amount"].sum().reset_index()
-    fig_pay = px.pie(pay_stats, values="Amount", names="Payment Type", hole=0.4, 
+    with st.expander("Payment Method Breakdown"):
+        # Group by Payment Type
+        pay_stats = df.groupby("Payment Type")["Amount"].sum().reset_index()
+        fig_pay = px.pie(pay_stats, values="Amount", names="Payment Type", hole=0.4, 
                      title="Revenue by Payment Type")
-    st.plotly_chart(fig_pay, use_container_width=True)
+        st.plotly_chart(fig_pay, use_container_width=True)
     
 
 
@@ -246,11 +246,11 @@ if not df.empty:
 
 
 # Row 1: Category Breakdown
-st.subheader("Total Sales by Category")
-cat_stats = df.groupby("Category")["Amount"].sum().reset_index()
-fig_cat = px.bar(cat_stats, x="Category", y="Amount", title="Revenue by Category")
-fig_cat.update_layout(yaxis_tickprefix='£')
-st.plotly_chart(fig_cat, use_container_width=True)
+with st.expander("Total Sales by Category"):
+    cat_stats = df.groupby("Category")["Amount"].sum().reset_index()
+    fig_cat = px.bar(cat_stats, x="Category", y="Amount", title="Revenue by Category")
+    fig_cat.update_layout(yaxis_tickprefix='£')
+    st.plotly_chart(fig_cat, use_container_width=True)
 
 
 
