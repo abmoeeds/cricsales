@@ -259,20 +259,38 @@ with st.expander("Total Sales by Category"):
 #st.plotly_chart(fig_cat, use_container_width=True)
 
 # Row 1.5: Top Customers & Items
-col1, col2 = st.columns(2)
+# --- TOP PERFORMANCE LEADERBOARDS ---
+with st.expander("🏆 View Top Customers & Best Selling Items"):
+    
+    # Recreate your two columns inside the expander
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Top Customers (by Value)")
+        cust_total = df.groupby("Customer Name")["Amount"].sum().nlargest(5).reset_index()
+        fig_cust = px.bar(
+            cust_total, 
+            x="Amount", 
+            y="Customer Name", 
+            orientation='h', 
+            text_auto=True,
+            height=300 # Keeps it compact on mobile
+        )
+        fig_cust.update_layout(xaxis_tickprefix='£', yaxis={'categoryorder':'total ascending'})
+        st.plotly_chart(fig_cust, use_container_width=True)
 
-with col1:
-    st.subheader("Top Customers (by Value)")
-    cust_total = df.groupby("Customer Name")["Amount"].sum().nlargest(5).reset_index()
-    fig_cust = px.bar(cust_total, x="Amount", y="Customer Name", orientation='h', text_auto=True)
-    st.plotly_chart(fig_cust, use_container_width=True)
-
-with col2:
-    st.subheader("Top Selling Items")
-    item_counts = df["Item Name"].value_counts().nlargest(5).reset_index()
-    item_counts.columns = ["Item Name", "Count"]
-    fig_item = px.pie(item_counts, values="Count", names="Item Name", hole=0.4)
-    st.plotly_chart(fig_item, use_container_width=True)
+    with col2:
+        st.subheader("Top Selling Items")
+        item_counts = df["Item Name"].value_counts().nlargest(5).reset_index()
+        item_counts.columns = ["Item Name", "Count"]
+        fig_item = px.pie(
+            item_counts, 
+            values="Count", 
+            names="Item Name", 
+            hole=0.4,
+            height=300 # Keeps it compact on mobile
+        )
+        st.plotly_chart(fig_item, use_container_width=True)
 
 # New Metric: Total Items Sold
 total_items = df['Quantity'].sum()
