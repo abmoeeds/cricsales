@@ -297,9 +297,23 @@ total_items = df['Quantity'].sum()
 st.metric("Total Items Sold", int(total_items))
 
 # Updated Chart: Sales vs Quantity
-fig_qty = px.bar(df.groupby("Category")[["Amount", "Quantity"]].sum().reset_index(), 
-                 x="Category", y="Quantity", title="Quantity Sold by Category")
-st.plotly_chart(fig_qty, use_container_width=True)
+# --- QUANTITY ANALYSIS ---
+with st.expander("📦 View Quantity Sold by Category"):
+    qty_data = df.groupby("Category")[["Amount", "Quantity"]].sum().reset_index()
+    
+    fig_qty = px.bar(
+        qty_data, 
+        x="Category", 
+        y="Quantity", 
+        title="Quantity Sold by Category",
+        text_auto=True, # Shows the exact number right on top of the bars
+        height=300      # Keeps it friendly for iPhone screens
+    )
+    
+    # Clean up the chart display
+    fig_qty.update_layout(xaxis_title="Category", yaxis_title="Units Sold")
+    st.plotly_chart(fig_qty, use_container_width=True)
+    
 
 
 
