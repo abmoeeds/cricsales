@@ -432,8 +432,8 @@ with st.expander("🗑️ Delete a Record"):
 with st.expander("📝 Filter & Bulk Edit Records"):
     st.info("Use the filters below to find specific records, edit them in the table, and click Save.")
     
-    # 1. Create Filter Columns
-    f_col1, f_col2 = st.columns(2)
+    # 1. Create Filter Columns (Split into 3 for Customer, Date, and Status)
+    f_col1, f_col2, f_col3 = st.columns(3)
     
     with f_col1:
         # Get unique customers for the filter
@@ -445,15 +445,22 @@ with st.expander("📝 Filter & Bulk Edit Records"):
         date_list = ["All"] + sorted(df['Date'].dt.strftime('%Y-%m-%d').unique().tolist(), reverse=True)
         filter_date = st.selectbox("Filter by Date:", date_list)
 
+    with f_col3:
+        # 🆕 Get unique statuses for the filter (e.g., Paid, Pending)
+        status_list = ["All"] + sorted(df['Status'].unique().tolist())
+        filter_status = st.selectbox("Filter by Status:", status_list)
+
     # 2. Apply Filtering to the DataFrame
     filtered_df = df.copy()
     if filter_cust != "All":
         filtered_df = filtered_df[filtered_df['Customer Name'] == filter_cust]
     if filter_date != "All":
         filtered_df = filtered_df[filtered_df['Date'].dt.strftime('%Y-%m-%d') == filter_date]
+    if filter_status != "All":
+        # 🆕 Apply the Payment Status filter
+        filtered_df = filtered_df[filtered_df['Status'] == filter_status]
 
     # 3. Display the Data Editor with the Filtered Results
-    # We show the index so we know which original rows to update
     edited_filtered_df = st.data_editor(
         filtered_df, 
         use_container_width=True, 
@@ -463,8 +470,7 @@ with st.expander("📝 Filter & Bulk Edit Records"):
             "Unit Price": st.column_config.NumberColumn("Unit Price", format="£%.2f"),
             "Adjustments": st.column_config.NumberColumn("Adjustments", format="£%.2f")
         }
-    )
-    
+    )    
     if st.button("💾 Save Changes to Google Sheet", use_container_width=True):
         # 1. Sync the edits into the master dataframe
         df.update(edited_filtered_df)
