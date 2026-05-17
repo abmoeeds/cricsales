@@ -195,18 +195,44 @@ if not df.empty:
     m3.metric("Avg. Order", f"£{df['Amount'].mean():,.2f}")
     m4.metric("Discounts", f"-£{df['Adjustments'].sum():,.2f}")
 
-    # Main Charts
+   # --- MAIN CHARTS EXPANDER ---
+with st.expander("📊 View Detailed Sales Trends & Payment Methods"):
+
+    # Main Tabs inside the expander
     tab1, tab2 = st.tabs(["📊 Sales Trends", "💳 Payment Methods"])
     with tab1:
-        fig_trend = px.line(df.groupby('Date')['Amount'].sum().reset_index(), x='Date', y='Amount', title="Revenue Over Time")
-        st.plotly_chart(fig_trend, use_container_width=True)
+        # Group data by Date
+        trend_data = df.groupby('Date')['Amount'].sum().reset_index()
+        
+        # 1. Added text_auto=True to generate the text labels automatically
+        fig_trend = px.bar(
+            trend_data, 
+            x='Date', 
+            y='Amount', 
+            title="Revenue Over Time",
+            text_auto=True, 
+            height=320 # Slightly increased height to make room for labels above the bars
+        )
+        
+        # 2. Format the labels to show as currency and place them cleanly on top
+        fig_trend.update_traces(
+            texttemplate='£%{y:,.2f}', 
+            textposition='outside'
+        )
+        
+        # Apply currency formatting to the side Y-axis as well
         fig_trend.update_layout(yaxis_tickprefix='£', yaxis_tickformat=',.2f')
-        #st.plotly_chart(fig_trend, use_container_width=True)
-
+        st.plotly_chart(fig_trend, use_container_width=True)
 
     with tab2:
-        fig_pay = px.pie(df, values="Amount", names="Payment Type", hole=0.4)
-        fig_pay.update_traces(textinfo='percent+label',hovertemplate='£%{value:,.2f}') 
+        fig_pay = px.pie(
+            df, 
+            values="Amount", 
+            names="Payment Type", 
+            hole=0.4,
+            height=300 # Mobile friendly height
+        )
+        fig_pay.update_traces(textinfo='percent+label', hovertemplate='£%{value:,.2f}') 
         st.plotly_chart(fig_pay, use_container_width=True)
 
 
