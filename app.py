@@ -141,28 +141,38 @@ if not df.empty:
     # Apply the classification
     df['Type'] = df['Category'].apply(classify_type)
 
-st.subheader("Business Split: Goods vs Services")
-t1, t2 = st.columns(2)
-
-# Calculate totals
-goods_total = df[df['Type'] == "📦 Goods"]['Amount'].sum()
-services_total = df[df['Type'] == "🛠️ Service"]['Amount'].sum()
-
-with t1:
-    st.metric("Total Goods Revenue", f"£{goods_total:,.2f}")
-with t2:
-    st.metric("Total Service Revenue", f"£{services_total:,.2f}")
-
-   
-# Optional: A small bar chart to visualize the split
-fig_split = px.bar(
-    df.groupby('Type')['Amount'].sum().reset_index(),
-    x='Type', y='Amount',
-    color='Type',
-    color_discrete_map={"📦 Goods": "#00CC96", "🛠️ Service": "#636EFA"},
-    title="Revenue Distribution"
-)
-st.plotly_chart(fig_split, use_container_width=True)
+# --- GOODS VS SERVICES ANALYSIS ---
+with st.expander("⚖️ View Goods vs Services Revenue Split"):
+    
+    # Calculate totals
+    goods_total = df[df['Type'] == "📦 Goods"]['Amount'].sum()
+    services_total = df[df['Type'] == "🛠️ Service"]['Amount'].sum()
+    
+    # Create columns inside the expander for metrics
+    t1, t2 = st.columns(2)
+    
+    with t1:
+        st.metric("Total Goods Revenue", f"£{goods_total:,.2f}")
+    with t2:
+        st.metric("Total Service Revenue", f"£{services_total:,.2f}")
+        
+    # Small bar chart to visualize the split underneath the metrics
+    fig_split = px.bar(
+        df.groupby('Type')['Amount'].sum().reset_index(),
+        x='Type', 
+        y='Amount',
+        color='Type',
+        color_discrete_map={"📦 Goods": "#00CC96", "🛠️ Service": "#636EFA"},
+        title="Revenue Distribution",
+        text_auto=True, # Shows the exact value on top of the bars
+        height=300      # Optimized for iPhone screens
+    )
+    
+    # Format layout and currency tags
+    fig_split.update_traces(texttemplate='£%{y:,.2f}', textposition='outside')
+    fig_split.update_layout(yaxis_tickprefix='£', yaxis_tickformat=',.2f', showlegend=False)
+    
+    st.plotly_chart(fig_split, use_container_width=True)
 
 
 with st.expander("🔍 Detailed Service Breakdown"):
