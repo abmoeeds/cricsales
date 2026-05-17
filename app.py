@@ -201,7 +201,7 @@ if not df.empty:
         fig_trend = px.line(df.groupby('Date')['Amount'].sum().reset_index(), x='Date', y='Amount', title="Revenue Over Time")
         st.plotly_chart(fig_trend, use_container_width=True)
         fig_trend.update_layout(yaxis_tickprefix='£', yaxis_tickformat=',.2f')
-        st.plotly_chart(fig_trend, use_container_width=True)
+        #st.plotly_chart(fig_trend, use_container_width=True)
 
 
     with tab2:
