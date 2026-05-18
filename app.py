@@ -7,6 +7,51 @@ from fpdf import FPDF
 import io
 import numpy as np
 
+# --- PASSWORD PROTECTION FUNCTION ---
+def check_password():
+    """Returns True if the user had the correct password."""
+
+    def password_entered():
+        """Checks whether a password entered by the user is correct."""
+        # Replace "SMZSports2026" with whatever password you want!
+        if st.session_state["password"] == "SMZSports2026":
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # Clear password from memory
+        else:
+            st.session_state["password_correct"] = False
+
+    # First run or password incorrect: show input form
+    if "password_correct" not in st.session_state or not st.session_state["password_correct"]:
+        st.title("🔒 SMZ Sports Dashboard")
+        st.subheader("Please log in to access the system")
+        
+        # Password entry field
+        st.text_input(
+            "Enter Password:", 
+            type="password", 
+            on_change=password_entered, 
+            key="password"
+        )
+        
+        # Show error message if they tried and failed
+        if "password_correct" in st.session_state and not st.session_state["password_correct"]:
+            st.error("😕 Incorrect password. Please try again.")
+            
+        return False
+    return True
+
+# --- CHECK PASSWORD GATEWAY ---
+if not check_password():
+    st.stop()  # Stop executing the rest of the app if not logged in
+
+# ====================================================================
+# YOUR EXISTING APP CODE STARTS HERE
+# (All your sh.get_all_records(), dataframes, and charts go down here)
+# ====================================================================
+
+
+
+
 # Custom CSS to make the app look better on iPhone
 st.markdown("""
     <style>
