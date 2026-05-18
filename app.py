@@ -8,29 +8,6 @@ import io
 import numpy as np
 
 
-# 1. Force the page to scale nicely on mobile screens
-st.set_page_config(page_title="SMZ Sports", page_icon="🏏", layout="centered")
-
-# 2. Inject both iOS and Android App Manifest Tags
-st.markdown(
-    """
-    <head>
-        <!-- Mobile Layout Optimization -->
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        
-        <!-- Android PWA Capable Tags -->
-        <meta name="mobile-web-app-capable" content="yes">
-        <meta name="theme-color" content="#FF4B4B"> <!-- Matches Streamlit's red accent, or use your own hex code -->
-        
-        <!-- iOS Standalone Tags (From Method 2) -->
-        <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    </head>
-    """, 
-    unsafe_allow_html=True
-)
-
-
 # --- PASSWORD PROTECTION FUNCTION ---
 def check_password():
     """Returns True if the user had the correct password."""
@@ -67,6 +44,31 @@ def check_password():
 # --- CHECK PASSWORD GATEWAY ---
 if not check_password():
     st.stop()  # Stop executing the rest of the app if not logged in
+
+# 1. Force the page to scale nicely on mobile screens
+st.set_page_config(page_title="SMZ Sports", page_icon="🏏", layout="centered")
+
+# 2. Inject both iOS and Android App Manifest Tags
+st.markdown(
+    """
+    <head>
+        <!-- Mobile Layout Optimization -->
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        
+        <!-- Android PWA Capable Tags -->
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="theme-color" content="#FF4B4B"> <!-- Matches Streamlit's red accent, or use your own hex code -->
+        
+        <!-- iOS Standalone Tags (From Method 2) -->
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    </head>
+    """, 
+    unsafe_allow_html=True
+)
+
+
+
 
 # ====================================================================
 # YOUR EXISTING APP CODE STARTS HERE
