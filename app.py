@@ -6,6 +6,7 @@ from google.oauth2.service_account import Credentials
 from fpdf import FPDF
 import io
 import numpy as np
+import streamlit.components.v1 as components
 
 
 # --- PASSWORD PROTECTION FUNCTION ---
@@ -54,23 +55,39 @@ import streamlit as st
 # 1. Force the page to scale nicely on mobile screens
 st.set_page_config(page_title="SMZ Sports", page_icon="🏏", layout="centered")
 
-# 2. Inject both iOS and Android App Manifest Tags correctly
-st.markdown(
+
+
+# 1. Page Configuration
+st.set_page_config(page_title="SMZ Sports", page_icon="🏏", layout="centered")
+
+# 2. Inject Mobile Headers Silently using a hidden component
+components.html(
     """
-    <head>
-        <!-- Mobile Layout Optimization -->
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        
-        <!-- Android PWA Capable Tags -->
-        <meta name="mobile-web-app-capable" content="yes">
-        <meta name="theme-color" content="#FF4B4B">
-        
-        <!-- iOS Standalone Tags -->
-        <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    </head>
-    """, 
-    unsafe_allow_html=True  # 👈 This line stops the code from printing on the screen!
+    <script>
+        // Inject meta tags directly into the real parent head of the app
+        var meta1 = document.createElement('meta');
+        meta1.name = 'viewport';
+        meta1.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+        document.getElementsByTagName('head')[0].appendChild(meta1);
+
+        var meta2 = document.createElement('meta');
+        meta2.name = 'mobile-web-app-capable';
+        meta2.content = 'yes';
+        document.getElementsByTagName('head')[0].appendChild(meta2);
+
+        var meta3 = document.createElement('meta');
+        meta3.name = 'apple-mobile-web-app-capable';
+        meta3.content = 'yes';
+        document.getElementsByTagName('head')[0].appendChild(meta3);
+
+        var meta4 = document.createElement('meta');
+        meta4.name = 'apple-mobile-web-app-status-bar-style';
+        meta4.content = 'black-translucent';
+        document.getElementsByTagName('head')[0].appendChild(meta4);
+    </script>
+    """,
+    height=0, # Makes the component completely invisible on screen
+    width=0
 )
 
 # ====================================================================
