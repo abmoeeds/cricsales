@@ -49,6 +49,12 @@ if not check_password():
 st.set_page_config(page_title="SMZ Sports", page_icon="🏏", layout="centered")
 
 # 2. Inject both iOS and Android App Manifest Tags
+import streamlit as st
+
+# 1. Force the page to scale nicely on mobile screens
+st.set_page_config(page_title="SMZ Sports", page_icon="🏏", layout="centered")
+
+# 2. Inject both iOS and Android App Manifest Tags correctly
 st.markdown(
     """
     <head>
@@ -57,18 +63,15 @@ st.markdown(
         
         <!-- Android PWA Capable Tags -->
         <meta name="mobile-web-app-capable" content="yes">
-        <meta name="theme-color" content="#FF4B4B"> <!-- Matches Streamlit's red accent, or use your own hex code -->
+        <meta name="theme-color" content="#FF4B4B">
         
-        <!-- iOS Standalone Tags (From Method 2) -->
+        <!-- iOS Standalone Tags -->
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     </head>
     """, 
-    unsafe_allow_html=True
+    unsafe_allow_html=True  # 👈 This line stops the code from printing on the screen!
 )
-
-
-
 
 # ====================================================================
 # YOUR EXISTING APP CODE STARTS HERE
