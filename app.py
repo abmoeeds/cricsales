@@ -381,14 +381,23 @@ with st.expander("🗓️ View Sales Trends Over Time"):
 
 # --- Plotting the Result ---
     if not agg_df.empty:
+        # 🔄 Changed from px.line to px.bar
         fig_time = px.bar(
             agg_df, 
             x='Date', 
             y='Amount', 
             title=f"{view_choice} Revenue Trend",
-            markers=True,
-            text_auto=True
-            )
+            text_auto=True,  # Added missing comma here
+            height=320       # Formatted for iPhone screens
+        )
+        
+        # Format the text labels to show clean currency layout (e.g. £120.00)
+        fig_time.update_traces(
+            texttemplate='£%{y:,.2f}', 
+            textposition='outside'
+        )
+        
+        # Apply currency formatting to the Y axis
         fig_time.update_layout(yaxis_tickprefix='£', yaxis_tickformat=',.2f')
         st.plotly_chart(fig_time, use_container_width=True)
     else:
