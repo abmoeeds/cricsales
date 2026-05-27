@@ -15,7 +15,6 @@ def check_password():
 
     def password_entered():
         """Checks whether a password entered by the user is correct."""
-        # Replace "SMZSports2026" with whatever password you want!
         if st.session_state["password"] == "SMZSports2026":
             st.session_state["password_correct"] = True
             del st.session_state["password"]  # Clear password from memory
@@ -27,13 +26,18 @@ def check_password():
         st.title("🔒 SMZ Sports Dashboard")
         st.subheader("Please log in to access the system")
         
-        # Password entry field
+        # 1. Password entry field
         st.text_input(
             "Enter Password:", 
             type="password", 
             on_change=password_entered, 
             key="password"
         )
+        
+        # 2. 🆕 Mobile Friendly Login Button
+        if st.button("🔓 Unlock Dashboard", use_container_width=True):
+            password_entered()
+            st.rerun() # Forces the page to instantly refresh and open up!
         
         # Show error message if they tried and failed
         if "password_correct" in st.session_state and not st.session_state["password_correct"]:
