@@ -518,21 +518,13 @@ with st.expander("🗓️ View Sales Trends Over Time"):
     st.subheader("Time-Based Sales Analysis")
     view_choice = st.radio("Select View:", ["Daily", "Weekly", "Monthly"], horizontal=True)
     
-   # Create a clean local copy and pull 'Date' out of the index if it's trapped there
-time_df = time_df.reset_index()
+# 🟢 Create a clean, independent copy directly from your master dataframe (df)
+trend_df = df.copy()
 
-# Create a dedicated copy for our trend calculations
-trend_df = time_df.copy()
+# 1. Safely convert 'Date' into a datetime object for processing
+trend_df['Date'] = pd.to_datetime(trend_df['Date'])
 
-# 1. Now it is safe to convert 'Date' into a true Datetime object
-if 'Date' in trend_df.columns:
-    trend_df['Date'] = pd.to_datetime(trend_df['Date'])
-else:
-    # Backup: If the column is named something else, let's find it
-    st.error("Could not find the 'Date' column in your trend data.")
-    st.stop()
-
-# 2. Run clean Groupby Aggregations based on your selection
+# 2. Run clean Groupby Aggregations directly from the source data
 if view_choice == "Daily":
     agg_df = trend_df.groupby(trend_df['Date'].dt.to_period('D'))['Amount'].sum().reset_index()
     agg_df['Date'] = agg_df['Date'].dt.strftime('%Y-%m-%d')
@@ -544,6 +536,29 @@ elif view_choice == "Weekly":
 elif view_choice == "Monthly":
     agg_df = trend_df.groupby(trend_df['Date'].dt.to_period('M'))['Amount'].sum().reset_index()
     agg_df['Date'] = agg_df['Date'].dt.strftime('%Y-%m')
+
+# --- Plotting the Result ---
+if not agg_df.empty:
+    fig_time = px.bar(
+        agg_df, 
+        x='Date', 
+        y='Amount', 
+        title=f"{view_choice} Revenue Trend",
+        text_auto=True, 
+        height=320       
+    )
+    
+    # Format bar labels to show clean currency text
+    fig_time.update_traces(
+        texttemplate='£%{y:,.2f}', 
+        textposition='outside'
+    )
+    
+    # Apply currency formatting to the Y side-axis
+    fig_time.update_layout(yaxis_tickprefix='£', yaxis_tickformat=',.2f')
+    st.plotly_chart(fig_time, use_container_width=True)
+else:
+    st.write("No data available for the selected period.")
 
 # --- Plotting the Result ---
     if not agg_df.empty:
