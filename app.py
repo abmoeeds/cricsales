@@ -598,9 +598,9 @@ with st.expander("View Raw Data Table"):
     display_df = display_df.sort_values("Date", ascending=False)
     
     # 3. Reformat the Date column to your preferred string format
-    # This changes the look to DD-MM-YYYY
-    display_df['Date'] = display_df['Date'].dt.strftime('%d-%m-%Y')
-    
+   
+    # Force it to a datetime object right before formatting to keep `.dt` happy
+    display_df['Date'] = pd.to_datetime(display_df['Date']).dt.strftime('%d-%m-%Y')
     # 4. Show the table
     st.dataframe(
         display_df, 
