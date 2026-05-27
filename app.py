@@ -516,8 +516,7 @@ with st.expander("📦 View Quantity Sold by Category"):
 
 with st.expander("🗓️ View Sales Trends Over Time"):
     st.subheader("Time-Based Sales Analysis")
-    view_choice = st.radio("Select View:", ["Daily", "Weekly", "Monthly"], horizontal=True)
-    
+    view_choice = st.selectbox("Select View:", ["Last 7 Days", "Daily", "Weekly", "Monthly"])
 # Create a clean, independent copy directly from your master dataframe (df)
 trend_df = df.copy()
 
