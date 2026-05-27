@@ -10,16 +10,38 @@ import streamlit.components.v1 as components
 
 
 # --- PASSWORD PROTECTION FUNCTION ---
+# --- PASSWORD PROTECTION FUNCTION ---
 def check_password():
     """Returns True if the user had the correct password."""
 
-    def password_entered():
-        """Checks whether a password entered by the user is correct."""
-        if st.session_state["password"] == "SMZSports2026":
+    # Initialize the session state variable if it doesn't exist yet
+    if "password_correct" not in st.session_state:
+        st.session_state["password_correct"] = False
+
+    # If already logged in, return True immediately
+    if st.session_state["password_correct"]:
+        return True
+
+    # Show the login screen
+    st.title("🔒 SMZ Sports Dashboard")
+    st.subheader("Please log in to access the system")
+    
+    # 1. Capture the input value directly into a variable
+    pwd_input = st.text_input("Enter Password:", type="password")
+    
+    # 2. Add a full-width mobile button
+    if st.button("🔓 Unlock Dashboard", use_container_width=True):
+        if pwd_input == "SMZSports2026":
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # Clear password from memory
+            st.rerun()  # Instantly opens up the app!
         else:
-            st.session_state["password_correct"] = False
+            st.session_state["password_error"] = True
+
+    # Show error message if login failed
+    if "password_error" in st.session_state and st.session_state["password_error"]:
+        st.error("😕 Incorrect password. Please try again.")
+        
+    return False
 
     # First run or password incorrect: show input form
     if "password_correct" not in st.session_state or not st.session_state["password_correct"]:
