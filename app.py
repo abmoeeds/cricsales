@@ -518,24 +518,32 @@ with st.expander("🗓️ View Sales Trends Over Time"):
     st.subheader("Time-Based Sales Analysis")
     view_choice = st.radio("Select View:", ["Daily", "Weekly", "Monthly"], horizontal=True)
     
-    # 1. Create a copy and set Date as index for time-math
-    time_df = df.copy()
-    time_df.set_index('Date', inplace=True)
+   # Create a clean local copy and pull 'Date' out of the index if it's trapped there
+time_df = time_df.reset_index()
 
-    # Force 'Date' back to a true Timestamp index layout for resampling
-time_df['Date'] = pd.to_datetime(time_df['Date'])
+# Create a dedicated copy for our trend calculations
+trend_df = time_df.copy()
 
+# 1. Now it is safe to convert 'Date' into a true Datetime object
+if 'Date' in trend_df.columns:
+    trend_df['Date'] = pd.to_datetime(trend_df['Date'])
+else:
+    # Backup: If the column is named something else, let's find it
+    st.error("Could not find the 'Date' column in your trend data.")
+    st.stop()
+
+# 2. Run clean Groupby Aggregations based on your selection
 if view_choice == "Daily":
-    # 🆕 Added: on='Date' tells pandas explicitly which column to process
-    agg_df = time_df.resample('D', on='Date')['Amount'].sum().reset_index()
+    agg_df = trend_df.groupby(trend_df['Date'].dt.to_period('D'))['Amount'].sum().reset_index()
+    agg_df['Date'] = agg_df['Date'].dt.strftime('%Y-%m-%d')
     
 elif view_choice == "Weekly":
-    # 🆕 Added: on='Date' 
-    agg_df = time_df.resample('W', on='Date')['Amount'].sum().reset_index()
+    agg_df = trend_df.groupby(trend_df['Date'].dt.to_period('W'))['Amount'].sum().reset_index()
+    agg_df['Date'] = agg_df['Date'].dt.start_time.dt.strftime('%Y-%m-%d')
     
 elif view_choice == "Monthly":
-    # 🆕 Added: on='Date'
-    agg_df = time_df.resample('ME', on='Date')['Amount'].sum().reset_index()
+    agg_df = trend_df.groupby(trend_df['Date'].dt.to_period('M'))['Amount'].sum().reset_index()
+    agg_df['Date'] = agg_df['Date'].dt.strftime('%Y-%m')
 
 # --- Plotting the Result ---
     if not agg_df.empty:
