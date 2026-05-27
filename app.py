@@ -518,14 +518,24 @@ with st.expander("🗓️ View Sales Trends Over Time"):
     st.subheader("Time-Based Sales Analysis")
     view_choice = st.radio("Select View:", ["Daily", "Weekly", "Monthly"], horizontal=True)
     
-# 🟢 Create a clean, independent copy directly from your master dataframe (df)
+# Create a clean, independent copy directly from your master dataframe (df)
 trend_df = df.copy()
 
 # 1. Safely convert 'Date' into a datetime object for processing
 trend_df['Date'] = pd.to_datetime(trend_df['Date'])
 
-# 2. Run clean Groupby Aggregations directly from the source data
-if view_choice == "Daily":
+# 2. Run clean Groupby Aggregations based on your selection
+if view_choice == "Last 7 Days":
+    # 🆕 Filter for records within the last 7 days only
+    today = pd.Timestamp.now().normalize()
+    seven_days_ago = today - pd.Timedelta(days=7)
+    trend_df = trend_df[(trend_df['Date'] >= seven_days_ago) & (trend_df['Date'] <= today)]
+    
+    # Group by day
+    agg_df = trend_df.groupby(trend_df['Date'].dt.to_period('D'))['Amount'].sum().reset_index()
+    agg_df['Date'] = agg_df['Date'].dt.strftime('%a (%d %b)') # e.g., "Mon (25 May)" looks great on mobile!
+
+elif view_choice == "Daily":
     agg_df = trend_df.groupby(trend_df['Date'].dt.to_period('D'))['Amount'].sum().reset_index()
     agg_df['Date'] = agg_df['Date'].dt.strftime('%Y-%m-%d')
     
