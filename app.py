@@ -232,6 +232,73 @@ if not df.empty:
     # Apply the classification
     df['Type'] = df['Category'].apply(classify_type)
 
+import datetime
+
+# ==========================================
+# 📊 TOP ROW: REAL-TIME SALES METRICS
+# ==========================================
+st.markdown("### 📈 Revenue Performance Overview")
+
+# Ensure Date column is in datetime format for comparison
+if not df.empty and 'Date' in df.columns:
+    df['Date'] = pd.to_datetime(df['Date']).dt.date
+
+    # 1. Get reference dates based on current time (2026)
+    today = datetime.date.today()
+    yesterday = today - datetime.timedelta(days=1)
+    seven_days_ago = today - datetime.timedelta(days=7)
+
+    # 2. Compute specific timeframe metrics
+    sales_today = df[df['Date'] == today]['Amount'].sum()
+    sales_yesterday = df[df['Date'] == yesterday]['Amount'].sum()
+    sales_7days = df[(df['Date'] >= seven_days_ago) & (df['Date'] <= today)]['Amount'].sum()
+
+    # 3. Render Top Metric Row
+    m_col1, m_col2, m_col3 = st.columns(3)
+    with m_col1:
+        st.metric("Today's Sales", f"£{sales_today:,.2f}")
+    with m_col2:
+        st.metric("Yesterday's Sales", f"£{sales_yesterday:,.2f}")
+    with m_col3:
+        st.metric("Last 7 Days", f"£{sales_7days:,.2f}")
+
+    # --- CUSTOM DATE RANGE EXPANDER ---
+    st.write("") # Tiny spacer
+    with st.expander("📅 Calculate Custom Date Range Sales"):
+        # Date selection inputs (defaulting to last 30 days)
+        date_range = st.date_input(
+            "Select Start and End Dates:",
+            value=(today - datetime.timedelta(days=30), today),
+            max_value=today
+        )
+        
+        # Streamlit date_input returns a tuple when selecting ranges
+        if isinstance(date_range, tuple) and len(date_range) == 2:
+            start_date, end_date = date_range
+            
+            # Filter and sum for custom range
+            custom_filtered = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
+            custom_total = custom_filtered['Amount'].sum()
+            custom_orders = len(custom_filtered)
+            
+            # Display results in clean card sub-columns
+            c1, c2 = st.columns(2)
+            with c1:
+                st.metric(
+                    label=f"Revenue ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')})", 
+                    value=f"£{custom_total:,.2f}"
+                )
+            with c2:
+                st.metric(
+                    label="Orders Processed", 
+                    value=f"{custom_orders} Jobs"
+                )
+        else:
+            st.info("Please select both a start date and an end date on the calendar drop-down.")
+
+st.markdown("---") # Visual separator before your dropdown graphs begin
+
+
 # --- GOODS VS SERVICES ANALYSIS ---
 with st.expander("⚖️ View Goods vs Services Revenue Split"):
     
