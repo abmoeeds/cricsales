@@ -522,20 +522,20 @@ with st.expander("🗓️ View Sales Trends Over Time"):
     time_df = df.copy()
     time_df.set_index('Date', inplace=True)
 
-    if view_choice == "Daily":
-        # Group by each day
-        agg_df = time_df.resample('D')['Amount'].sum().reset_index()
-        x_axis_label = "Date"
+    # Force 'Date' back to a true Timestamp index layout for resampling
+time_df['Date'] = pd.to_datetime(time_df['Date'])
 
-    elif view_choice == "Weekly":
-        # This solves your error! It creates weeks starting on Monday
-        agg_df = time_df.resample('W-MON')['Amount'].sum().reset_index()
-        x_axis_label = "Week Starting"
-
-    elif view_choice == "Monthly":
-        # 'ME' stands for Month End
-        agg_df = time_df.resample('ME')['Amount'].sum().reset_index()
-        x_axis_label = "Month"
+if view_choice == "Daily":
+    # 🆕 Added: on='Date' tells pandas explicitly which column to process
+    agg_df = time_df.resample('D', on='Date')['Amount'].sum().reset_index()
+    
+elif view_choice == "Weekly":
+    # 🆕 Added: on='Date' 
+    agg_df = time_df.resample('W', on='Date')['Amount'].sum().reset_index()
+    
+elif view_choice == "Monthly":
+    # 🆕 Added: on='Date'
+    agg_df = time_df.resample('ME', on='Date')['Amount'].sum().reset_index()
 
 # --- Plotting the Result ---
     if not agg_df.empty:
