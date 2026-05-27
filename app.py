@@ -636,15 +636,28 @@ with st.expander("📝 Filter & Bulk Edit Records"):
     # 1. Create Filter Columns (Split into 3 for Customer, Date, and Status)
     f_col1, f_col2, f_col3 = st.columns(3)
     
+ 
+    
+    
+    
     with f_col1:
         # Get unique customers for the filter
         cust_list = ["All"] + sorted(df['Customer Name'].unique().tolist())
         filter_cust = st.selectbox("Filter by Customer:", cust_list)
         
+        
     with f_col2:
-        # Get unique dates for the filter
-        date_list = ["All"] + sorted(df['Date'].dt.strftime('%Y-%m-%d').unique().tolist(), reverse=True)
+        # 🔐 Fix: Wrap df['Date'] in pd.to_datetime to keep the .dt accessor happy
+        date_list = ["All"] + sorted(pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d').unique().tolist(), reverse=True)
         filter_date = st.selectbox("Filter by Date:", date_list)
+
+    # 2. Apply Filtering to the DataFrame
+    filtered_df = df.copy()
+    if filter_cust != "All":
+        filtered_df = filtered_df[filtered_df['Customer Name'] == filter_cust]
+    if filter_date != "All":
+        # 🔐 Fix: Wrap filtered_df['Date'] here as well so the filtering matches cleanly
+        filtered_df = filtered_df[pd.to_datetime(filtered_df['Date']).dt.strftime('%Y-%m-%d') == filter_date]
 
     with f_col3:
         # 🆕 Get unique statuses for the filter (e.g., Paid, Pending)
