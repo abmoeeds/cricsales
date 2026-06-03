@@ -700,11 +700,16 @@ with st.expander("📝 Filter & Bulk Edit Records"):
         filter_status = st.selectbox("Filter by Status:", status_list)
 
     # 2. Apply Filtering to the DataFrame
+
     filtered_df = df.copy()
+    
     if filter_cust != "All":
         filtered_df = filtered_df[filtered_df['Customer Name'] == filter_cust]
+        
     if filter_date != "All":
-        filtered_df = filtered_df[filtered_df['Date'].dt.strftime('%Y-%m-%d') == filter_date]
+        # 🔐 Fix: Force the subset's Date column to datetime right before checking against the filter date
+        filtered_df = filtered_df[pd.to_datetime(filtered_df['Date']).dt.strftime('%Y-%m-%d') == filter_date]
+    
     if filter_status != "All":
         # 🆕 Apply the Payment Status filter
         filtered_df = filtered_df[filtered_df['Status'] == filter_status]
