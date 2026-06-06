@@ -339,9 +339,10 @@ if not df.empty and 'Date' in df.columns:
 st.markdown("---")
 
 # ==========================================
-    # ⚠️ PENDING PAYMENTS TRACKING TABLE
-    # ==========================================
-    if total_pending > 0:
+# ⚠️ PENDING PAYMENTS TRACKING TABLE
+# ==========================================
+
+if total_pending > 0:
         with st.expander(f"📋 View Pending Payments Details ({pending_count} Jobs Outline)"):
             # Select relevant columns for quick mobile scanning
             # (Adjust column names here to match your Google Sheet exactly)
