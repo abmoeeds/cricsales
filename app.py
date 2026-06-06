@@ -339,37 +339,37 @@ if not df.empty and 'Date' in df.columns:
 st.markdown("---")
 
 if total_pending > 0:
-        with st.expander(f"📋 View Pending Payments Details ({pending_count} Jobs Outline)"):
-            # Select relevant columns for quick mobile scanning
-            # (Adjust column names here to match your Google Sheet exactly)
-            pending_display = pending_df.copy()
+    with st.expander(f"📋 View Pending Payments Details ({pending_count} Jobs Outline)"):
+        # Select relevant columns for quick mobile scanning
+        # (Adjust column names here to match your Google Sheet exactly)
+        pending_display = pending_df.copy()
+        
+        # Ensure proper columns exist before displaying
+        columns_to_show = ['Date', 'Customer Name', 'Amount']
+        # Optional: Add item/service details column if you have one, e.g., 'Description' or 'Items'
+        if 'Description' in pending_display.columns:
+            columns_to_show.append('Description')
             
-            # Ensure proper columns exist before displaying
-            columns_to_show = ['Date', 'Customer Name', 'Amount']
-            # Optional: Add item/service details column if you have one, e.g., 'Description' or 'Items'
-            if 'Description' in pending_display.columns:
-                columns_to_show.append('Description')
-                
-            # Filter to show only necessary columns and sort by oldest first
-            pending_table = pending_display[columns_to_show].sort_values(by='Date', ascending=True)
-            
-            # Format the Date for crisp mobile display (DD-MM-YYYY)
-            pending_table['Date'] = pd.to_datetime(pending_table['Date']).dt.strftime('%d-%m-%Y')
-            
-            # Format the Amount column to display beautifully as currency
-            pending_table['Amount'] = pending_table['Amount'].map('£{:,.2f}'.format)
-            
-            # Reset index so it reads cleanly as 1, 2, 3...
-            pending_table = pending_table.reset_index(drop=True)
-            pending_table.index += 1
-            
-            # Render the interactive dataframe table
-            st.dataframe(pending_table, use_container_width=True)
-            
-            # Quick Summary Tip Box
-            st.info(f"💡 You have **£{total_pending:,.2f}** tied up across **{pending_count}** outstanding entries. The table is sorted with your oldest unpaid jobs at the top.")
-    else:
-        st.success("✅ Awesome! There are currently no pending payments on your books.")
+        # Filter to show only necessary columns and sort by oldest first
+        pending_table = pending_display[columns_to_show].sort_values(by='Date', ascending=True)
+        
+        # Format the Date for crisp mobile display (DD-MM-YYYY)
+        pending_table['Date'] = pd.to_datetime(pending_table['Date']).dt.strftime('%d-%m-%Y')
+        
+        # Format the Amount column to display beautifully as currency
+        pending_table['Amount'] = pending_table['Amount'].map('£{:,.2f}'.format)
+        
+        # Reset index so it reads cleanly as 1, 2, 3...
+        pending_table = pending_table.reset_index(drop=True)
+        pending_table.index += 1
+        
+        # Render the interactive dataframe table
+        st.dataframe(pending_table, use_container_width=True)
+        
+        # Quick Summary Tip Box
+        st.info(f"💡 You have **£{total_pending:,.2f}** tied up across **{pending_count}** outstanding entries. The table is sorted with your oldest unpaid jobs at the top.")
+else:
+    st.success("✅ Awesome! There are currently no pending payments on your books.")
 
 
 
