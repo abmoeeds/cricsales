@@ -170,6 +170,9 @@ sh = client.open_by_key(SHEET_ID).sheet1
 # --- 2. DATA ENTRY SECTION ---
 
 
+
+
+
 # --- 1. HEADER & TOP ACTIONS ---
 st.title("🏏 SMZ Sports Cricket Sales Analytics")
 
@@ -263,67 +266,77 @@ import datetime
 # ==========================================
 # 📊 TOP ROW: REAL-TIME SALES METRICS
 # ==========================================
-st.markdown("### 📈 Revenue Performance Overview")
+st.markdown("### 📈 Financial Performance Overview")
 
 # Ensure Date column is in datetime format for comparison
 if not df.empty and 'Date' in df.columns:
     df['Date'] = pd.to_datetime(df['Date']).dt.date
 
-    # 1. Get reference dates based on current time (2026)
+    # 1. Get reference dates
     today = datetime.date.today()
     yesterday = today - datetime.timedelta(days=1)
     seven_days_ago = today - datetime.timedelta(days=7)
 
-    # 2. Compute specific timeframe metrics
-    sales_today = df[df['Date'] == today]['Amount'].sum()
-    sales_yesterday = df[df['Date'] == yesterday]['Amount'].sum()
-    sales_7days = df[(df['Date'] >= seven_days_ago) & (df['Date'] <= today)]['Amount'].sum()
+    # 2. SEPARATE PAID VS PENDING (Adjust 'Status' and 'Paid'/'Pending' to match your sheet exactly)
+    # This filters the data pools before calculating dates
+    paid_df = df[df['Status'].str.strip().str.lower() == 'paid']
+    pending_df = df[df['Status'].str.strip().str.lower() == 'pending']
 
-    # 3. Render Top Metric Row
-    m_col1, m_col2, m_col3 = st.columns(3)
+    # 3. Compute Paid timeframe metrics
+    sales_today = paid_df[paid_df['Date'] == today]['Amount'].sum()
+    sales_yesterday = paid_df[paid_df['Date'] == yesterday]['Amount'].sum()
+    sales_7days = paid_df[(paid_df['Date'] >= seven_days_ago) & (paid_df['Date'] <= today)]['Amount'].sum()
+
+    # 4. Compute Total Pending Payments (Lifetime outstanding balance)
+    total_pending = pending_df['Amount'].sum()
+    pending_count = len(pending_df)
+
+    # 5. Render Top Metric Row (4 columns to fit everything cleanly on mobile)
+    m_col1, m_col2, m_col3, m_col4 = st.columns(4)
     with m_col1:
-        st.metric("Today's Sales", f"£{sales_today:,.2f}")
+        st.metric("Today's Paid", f"£{sales_today:,.2f}")
     with m_col2:
-        st.metric("Yesterday's Sales", f"£{sales_yesterday:,.2f}")
+        st.metric("Yesterday's Paid", f"£{sales_yesterday:,.2f}")
     with m_col3:
-        st.metric("Last 7 Days", f"£{sales_7days:,.2f}")
+        st.metric("Last 7 Days Paid", f"£{sales_7days:,.2f}")
+    with m_col4:
+        # Highlight pending payments using a custom delta or subtitle layout
+        st.metric(
+            label="⚠️ Total Pending", 
+            value=f"£{total_pending:,.2f}",
+            delta=f"{pending_count} unpaid jobs",
+            delta_color="inverse" # Makes it red/orange alert style instead of green growth style
+        )
 
     # --- CUSTOM DATE RANGE EXPANDER ---
     st.write("") # Tiny spacer
-    with st.expander("📅 Calculate Custom Date Range Sales"):
-        # Date selection inputs (defaulting to last 30 days)
+    with st.expander("📅 Calculate Custom Date Range (Paid Only)"):
         date_range = st.date_input(
             "Select Start and End Dates:",
             value=(today - datetime.timedelta(days=30), today),
             max_value=today
         )
         
-        # Streamlit date_input returns a tuple when selecting ranges
         if isinstance(date_range, tuple) and len(date_range) == 2:
             start_date, end_date = date_range
             
-            # Filter and sum for custom range
-            custom_filtered = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
+            # Filter paid records for custom range
+            custom_filtered = paid_df[(paid_df['Date'] >= start_date) & (paid_df['Date'] <= end_date)]
             custom_total = custom_filtered['Amount'].sum()
             custom_orders = len(custom_filtered)
             
-            # Display results in clean card sub-columns
             c1, c2 = st.columns(2)
             with c1:
                 st.metric(
-                    label=f"Revenue ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')})", 
+                    label=f"Paid Revenue ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')})", 
                     value=f"£{custom_total:,.2f}"
                 )
             with c2:
-                st.metric(
-                    label="Orders Processed", 
-                    value=f"{custom_orders} Jobs"
-                )
+                st.metric(label="Completed Paid Jobs", value=f"{custom_orders} Jobs")
         else:
             st.info("Please select both a start date and an end date on the calendar drop-down.")
 
-st.markdown("---") # Visual separator before your dropdown graphs begin
-
+st.markdown("---")
 
 # --- GOODS VS SERVICES ANALYSIS ---
 with st.expander("⚖️ View Goods vs Services Revenue Split"):
