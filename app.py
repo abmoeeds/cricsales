@@ -338,10 +338,6 @@ if not df.empty and 'Date' in df.columns:
 
 st.markdown("---")
 
-# ==========================================
-# ⚠️ PENDING PAYMENTS TRACKING TABLE
-# ==========================================
-
 if total_pending > 0:
         with st.expander(f"📋 View Pending Payments Details ({pending_count} Jobs Outline)"):
             # Select relevant columns for quick mobile scanning
@@ -374,6 +370,11 @@ if total_pending > 0:
             st.info(f"💡 You have **£{total_pending:,.2f}** tied up across **{pending_count}** outstanding entries. The table is sorted with your oldest unpaid jobs at the top.")
     else:
         st.success("✅ Awesome! There are currently no pending payments on your books.")
+
+
+
+
+
 
 
 
