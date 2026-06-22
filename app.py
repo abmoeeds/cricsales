@@ -190,7 +190,9 @@ if "sales_basket" not in st.session_state:
 with st.container():
     c1, c2 = st.columns(2)
     with c1:
-        sale_date = st.date_input("Transaction Date:", value=datetime.date.today())
+        # 🟢 Change line 193 to this:
+        sale_date = st.date_input("Transaction Date:", value=datetime.now().date())
+        #sale_date = st.date_input("Transaction Date:", value=datetime.date.today())
     with c2:
         customer_name = st.text_input("Customer Name:", placeholder="Enter name...")
     
