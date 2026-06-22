@@ -174,9 +174,6 @@ sh = client.open_by_key(SHEET_ID).sheet1
 
 
 
-# --- 1. HEADER & TOP ACTIONS ---
-st.title("🏏 SMZ Sports Cricket Sales Analytics")
-
 # ==========================================
 # 🛒 MULTI-ITEM SALE ENTRY SYSTEM
 # ==========================================
@@ -186,48 +183,67 @@ st.markdown("### 📥 Log New Sale (Multi-Item Entry)")
 if "sales_basket" not in st.session_state:
     st.session_state["sales_basket"] = []
 
-# --- CORE TRANSACTION DETAILS ---
-# These details apply to the whole order
+# --- CORE TRANSACTION DETAILS (Shared for the entire order) ---
 with st.container():
     c1, c2 = st.columns(2)
     with c1:
-        # 🟢 Change line 193 to this:
-        # 🟢 Change line 194 to this exact line:
         sale_date = st.date_input("Transaction Date:", value=datetime.now())
-        #sale_date = st.date_input("Transaction Date:", value=datetime.now().date())
-        #sale_date = st.date_input("Transaction Date:", value=datetime.date.today())
     with c2:
         customer_name = st.text_input("Customer Name:", placeholder="Enter name...")
-    
-    payment_status = st.selectbox("Payment Status:", ["Paid", "Pending", "Cancelled"])
+
+    c3, c4 = st.columns(2)
+    with c3:
+        payment_status = st.selectbox("Payment Status:", ["Paid", "Pending"])
+    with c4:
+        payment_type = st.selectbox("Payment Type:", ["Cash", "Bank Transfer", "Card", "N/A"])
+
+    c5, c6 = st.columns(2)
+    with c5:
+        # Default payment date to today, or user can change it
+        pay_date = st.date_input("Payment Date (If Paid):", value=datetime.now())
+    with c6:
+        notes = st.text_input("Notes / Remarks:", placeholder="Any extra details...")
 
 st.markdown("#### 🛠️ Add Items to Basket")
 
-# --- ITEM STAGING CONTROLS ---
-# Select individual items/services here
-i_col1, i_col2, i_col3 = st.columns([2, 1, 1])
+# --- INDIVIDUAL ITEM CONTROLS (Matches your exact sheet schema) ---
+i1, i2 = st.columns(2)
+with i1:
+    item_name = st.text_input("Item Name / Service:", placeholder="e.g., Bat Knocking, Grip...")
+with i2:
+    category = st.selectbox("Category:", ["Bat Repair", "Equipment", "Grip/Accessories", "Services", "Other"])
 
-with i_col1:
-    # Replace options list with your actual inventory items if you have them
-    item_desc = st.text_input("Item/Service Description:", placeholder="e.g., Bat Knocking, Grip, Repair...")
-with i_col2:
+i3, i4, i5, i6 = st.columns(4)
+with i3:
+    size = st.text_input("Size:", value="N/A", placeholder="e.g., SH, Harrow, 5...")
+with i4:
     item_qty = st.number_input("Qty:", min_value=1, value=1, step=1)
-with i_col3:
-    item_price = st.number_input("Price (£):", min_value=0.0, value=0.0, step=5.0)
+with i5:
+    unit_price = st.number_input("Unit Price (£):", min_value=0.0, value=0.0, step=5.0)
+with i6:
+    discount = st.number_input("Discount (£):", min_value=0.0, value=0.0, step=1.0)
 
 # Add Item Button
 if st.button("➕ Add Item to Order", use_container_width=True):
-    if item_desc.strip() == "":
-        st.warning("Please enter an item description before adding.")
-    elif item_price <= 0:
-        st.warning("Please enter a price greater than £0.00.")
+    if item_name.strip() == "":
+        st.warning("Please enter an item name before adding.")
+    elif unit_price <= 0 and discount == 0:
+        st.warning("Please enter a valid price.")
     else:
-        # Append item dict into our session memory basket
+        # Calculate individual item total
+        total_calculated = (unit_price * item_qty) - discount
+        
+        # Append all metadata required for this item into the session basket
         st.session_state["sales_basket"].append({
-            "Description": f"{item_desc.strip()} (x{item_qty})",
-            "Amount": float(item_price * item_qty)
+            "item": item_name.strip(),
+            "category": category,
+            "size": size.strip(),
+            "quantity": int(item_qty),
+            "unit_price": float(unit_price),
+            "discount": float(discount),
+            "total_calculated": float(total_calculated)
         })
-        st.success(f"Added: {item_desc} x{item_qty}")
+        st.success(f"Added: {item_name} to order list!")
         st.rerun()
 
 # --- DISPLAY RUNNING BASKET SUMMARY ---
@@ -235,17 +251,15 @@ if st.session_state["sales_basket"]:
     st.markdown("---")
     st.markdown("📋 **Current Order Basket:**")
     
-    # Calculate running values
     basket_df = pd.DataFrame(st.session_state["sales_basket"])
-    running_total = basket_df["Amount"].sum()
+    running_total = basket_df["total_calculated"].sum()
     
-    # Render the items neatly for mobile scanning
+    # Neatly list out what's currently staged
     for idx, row in basket_df.iterrows():
-        st.text(f"🔹 {row['Description']} — £{row['Amount']:,.2f}")
+        st.text(f"🔹 {row['item']} ({row['size']}) x{row['quantity']} — £{row['total_calculated']:,.2f}")
         
     st.markdown(f"### 🧾 Total Order Value: **£{running_total:,.2f}**")
     
-    # Clear Basket Button if you mess up
     if st.button("🗑️ Clear Basket", type="secondary"):
         st.session_state["sales_basket"] = []
         st.rerun()
@@ -258,41 +272,38 @@ if st.session_state["sales_basket"]:
             st.error("❌ Please provide a Customer Name before finalizing the order.")
         else:
             try:
-                # Combine all item descriptions into a single clean string for the Google Sheet row
-                combined_desc = " | ".join([item["Description"] for item in st.session_state["sales_basket"]])
+                # Loop through every item in your basket and append it as its own row to sh
+                for item in st.session_state["sales_basket"]:
+                    new_row = [
+                        str(sale_date.strftime("%Y-%m-%d")),
+                        item["item"],
+                        item["category"],
+                        item["size"],
+                        int(item["quantity"]),
+                        float(item["unit_price"]),
+                        float(item["discount"]),
+                        float(item["total_calculated"]),
+                        customer_name.strip(),
+                        payment_status,
+                        str(pay_date.strftime("%Y-%m-%d")),
+                        payment_type,
+                        notes.strip()
+                    ]
+                    # Directly append to your original sheet object 'sh'
+                    sh.append_row(new_row)
                 
-                # Format a single final clean data row matching your sheet schema
-                # (Make sure these keys align with how your `conn.create` or spreadsheet columns work)
-                new_row = {
-                    "Date": sale_date.strftime("%Y-%m-%d"),
-                    "Customer Name": customer_name.strip(),
-                    "Description": combined_desc,
-                    "Amount": running_total,
-                    "Status": payment_status
-                }
-                
-                # --- YOUR SPREADSHEET APPEND LOGIC HERE ---
-                # Example assuming you use st.connection("gsheets"):
-                # conn.create(worksheet="Sales", data=[new_row])
-                
-                # 🛑 NOTE: Replace the line below with your exact existing sheet saving command!
-                # e.g., append_to_google_sheets(new_row) 
-                st.write("Saving entry:", new_row) # Placeholder indicator
-                
-                # Clear basket and trigger success message
+                # Clear basket and reset state
                 st.session_state["sales_basket"] = []
-                st.success(f"🎉 Success! Order for {customer_name} totaling £{running_total:,.2f} saved successfully!")
-                st.cache_data.clear() # Clear cache to refresh dashboard metrics immediately
+                st.success(f"🎉 Success! All items for {customer_name} totaling £{running_total:,.2f} saved successfully!")
+                
+                # Clear memory filters so dashboard refreshes automatically
+                st.cache_data.clear()
                 st.rerun()
                 
             except Exception as e:
                 st.error(f"Failed to write data to Google Sheets: {e}")
 else:
-    st.info("🛒 Your basket is currently empty. Add items using the form above to build an invoice.")
-
-
-
-
+    st.info("🛒 Your basket is currently empty. Add items using the form above to build an order.")
 
 
 
