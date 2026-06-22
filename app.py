@@ -7,6 +7,7 @@ from fpdf import FPDF
 import io
 import numpy as np
 import streamlit.components.v1 as components
+from datetime import datetime
 
 
 # --- PASSWORD PROTECTION FUNCTION ---
@@ -191,7 +192,9 @@ with st.container():
     c1, c2 = st.columns(2)
     with c1:
         # 🟢 Change line 193 to this:
-        sale_date = st.date_input("Transaction Date:", value=datetime.now().date())
+        # 🟢 Change line 194 to this exact line:
+        sale_date = st.date_input("Transaction Date:", value=datetime.now())
+        #sale_date = st.date_input("Transaction Date:", value=datetime.now().date())
         #sale_date = st.date_input("Transaction Date:", value=datetime.date.today())
     with c2:
         customer_name = st.text_input("Customer Name:", placeholder="Enter name...")
