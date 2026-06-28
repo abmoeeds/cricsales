@@ -215,7 +215,7 @@ with i2:
 
 i3, i4, i5, i6 = st.columns(4)
 with i3:
-    size = st.text_input("Size:", value="N/A", placeholder="e.g., SH, Harrow, 5...")
+    size = st.selectbox("Size:", ["N/A", "Small", "Medium", "Large", "Full Size", "Harrow", "6", "5", "4", "7", "8", "9", "10", "3", "11", "12"])
 with i4:
     item_qty = st.number_input("Qty:", min_value=1, value=1, step=1)
 with i5:
