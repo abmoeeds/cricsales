@@ -211,7 +211,7 @@ i1, i2 = st.columns(2)
 with i1:
     item_name = st.text_input("Item Name / Service:", placeholder="e.g., Bat Knocking, Grip...")
 with i2:
-    category = st.selectbox("Category:", ["Bat Repair", "Equipment", "Grip/Accessories", "Services", "Other"])
+    category = st.selectbox("Category:", ["Helmet","Shoes","Tennis Ball","Tennis Bat","Wooden Stumps","Toe Guard","Bat Grip","Bat Handle Replacement","Bat Refurbishing","Bat Stickers","Cricket Bat English Willow","Batting Gloves","Batting Pads","Thigh Pads","Abdominal Guard","Kit Bag","Red Ball","Bat Knocking","SG GLOVES","NIVI PU BALLS","SS COMPLETE KIT","BAT CRACK REPAIR","Bat Binding","BAT REPAIR","Cricket Bat Kashmir Willow","Mallet","Scuff Sheet","Batting Inner Gloves","Plastic Stumps","supporter","Arm Guard","cricket wear","Bat weight Reduction","Bats","Services", "Other"])
 
 i3, i4, i5, i6 = st.columns(4)
 with i3:
