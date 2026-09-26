@@ -957,26 +957,15 @@ def create_pdf(customer_name, customer_data):
     
     return pdf.output(dest='S').encode('latin-1')
 
+
+
 # --- INVOICE UI SECTION ---
 st.markdown("---")
 st.subheader("🧾 Generate Customer Invoice")
 
-col_inv1, col_inv2 = st.columns([2, 1])
-
-# Replace your existing Customer Name selection input with this dual-search block:
-
 st.markdown("#### 🔍 Select Invoice Criteria")
 
-# 1. Choose how you want to find the sales records
-search_mode = st.radio("Generate Invoice By:", ["Customer Name", "Specific Date"], horizontal=True)
-
-selected_sales = pd.DataFrame()
-inv_customer_name = ""
-inv_date_str = ""
-
-st.markdown("#### 🔍 Select Invoice Criteria")
-
-# 1. Select Customer Name first
+# 1. Select Customer Name
 cust_list = sorted(df['Customer Name'].dropna().unique().tolist())
 selected_cust = st.selectbox("1. Select Customer Name:", cust_list)
 
@@ -1005,49 +994,40 @@ if selected_cust:
     
     # Filter customer sales based on selected dates
     if selected_dates:
-        # Match any of the selected dates
         selected_sales = cust_df[
             pd.to_datetime(cust_df['Date']).dt.strftime('%Y-%m-%d').isin(selected_dates)
         ]
-        
-        # Format dates for invoice header
         if len(selected_dates) == 1:
             inv_date_str = pd.to_datetime(selected_dates[0]).strftime("%d-%m-%Y")
         else:
             inv_date_str = f"Multiple ({len(selected_dates)} dates)"
     else:
-        # If no specific dates selected, include all transactions for this customer
+        # Include all transactions if no dates picked
         selected_sales = cust_df
-        # 🔐 Fix: Replaced datetime.now() with pd.Timestamp.now() to eliminate the AttributeError
         inv_date_str = pd.Timestamp.now().strftime("%d-%m-%Y")
 
-
-
-
-
-with col_inv1:
-    # Select distinct customers from your data
-    all_customers = sorted(df['Customer Name'].unique())
-    selected_customer = st.selectbox("Select Customer for Invoice", all_customers)
-
-with col_inv2:
-    st.write("##") # Alignment
-    if selected_customer:
-        # Filter data for this specific customer
-        customer_items = df[df['Customer Name'] == selected_customer]
-        
-        # Generate the PDF in memory
-        pdf_bytes = create_pdf(selected_customer, customer_items)
-        
-        st.download_button(
-            label="📥 Download PDF Invoice",
-            data=pdf_bytes,
-            file_name=f"Invoice_{selected_customer.replace(' ', '_')}.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
-
-# Show a preview of what's going into the invoice
-if selected_customer:
-    st.write(f"Previewing items for **{selected_customer}**:")
-    st.dataframe(customer_items[['Date', 'Item Name', 'Quantity', 'Amount']], use_container_width=True, hide_index=True)
+# --- DISPLAY PREVIEW & DOWNLOAD BUTTON ---
+if not selected_sales.empty:
+    st.write(f"Previewing items for **{inv_customer_name}** ({inv_date_str}):")
+    
+    # Determine the correct column names present in your DataFrame
+    cols_to_display = []
+    for col in ['Date', 'Item Name', 'Item', 'Description', 'Quantity', 'Qty', 'Amount', 'total_calculated']:
+        if col in selected_sales.columns:
+            cols_to_display.append(col)
+            
+    # Show preview table using filtered records
+    st.dataframe(selected_sales[cols_to_display], use_container_width=True, hide_index=True)
+    
+    # Generate and render PDF download button
+    pdf_bytes = create_pdf(inv_customer_name, selected_sales)
+    
+    st.download_button(
+        label="📥 Download PDF Invoice",
+        data=pdf_bytes,
+        file_name=f"Invoice_{inv_customer_name.replace(' ', '_')}.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
+else:
+    st.info("No matching records found for the selected criteria.")
