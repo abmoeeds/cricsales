@@ -587,8 +587,12 @@ if total_pending > 0:
                             sh.update_cell(sheet_row_num, amount_col_num, new_row_amount)
 
                     st.success(f"🎉 Payment of £{installment_paid:,.2f} on {installment_date.strftime('%d-%m-%Y')} recorded for {selected_p_cust}! Remaining balance: £{new_total_owed:,.2f}")
+                   
+                    # Clear all Streamlit cached data so the re-read fetches fresh numbers from Google Sheets
                     st.cache_data.clear()
+                    st.cache_resource.clear()
                     st.rerun()
+                    
 
                 except Exception as e:
                     st.error(f"Failed to record installment payment: {e}")
