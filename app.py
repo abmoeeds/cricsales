@@ -429,140 +429,133 @@ if not df.empty and 'Date' in df.columns:
 st.markdown("---")
 
 if total_pending > 0:
-    with st.expander(f"📋 View Pending Payments & Record Installments ({pending_count} Jobs Outline)"):
+    with st.expander(f"📋 View Pending Balances & Record Customer Installments"):
         pending_display = pending_df.copy()
-        
-        # 1. --- FILTER BY PENDING CUSTOMER ---
-        pending_cust_list = ["All Pending Customers"] + sorted(pending_display['Customer Name'].dropna().unique().tolist())
-        selected_p_cust = st.selectbox("🔍 Filter Pending Jobs by Customer:", pending_cust_list)
-        
-        if selected_p_cust != "All Pending Customers":
-            pending_display = pending_display[pending_display['Customer Name'] == selected_p_cust]
 
-        # Determine columns to display safely
-        columns_to_show = ['Date', 'Customer Name', 'Amount']
-        if 'Description' in pending_display.columns:
-            columns_to_show.append('Description')
-        elif 'Item Name' in pending_display.columns:
-            columns_to_show.append('Item Name')
-            
-        pending_table = pending_display[columns_to_show].sort_values(by='Date', ascending=True).copy()
-        
-        # Format for clean mobile table viewing
-        pending_table['Formatted Date'] = pd.to_datetime(pending_table['Date']).dt.strftime('%d-%m-%Y')
-        pending_table['Formatted Amount'] = pending_table['Amount'].map('£{:,.2f}'.format)
-        
-        display_cols = ['Formatted Date', 'Customer Name']
-        if 'Description' in pending_table.columns:
-            display_cols.append('Description')
-        elif 'Item Name' in pending_table.columns:
-            display_cols.append('Item Name')
-        display_cols.append('Formatted Amount')
+        # Connect to the dedicated Installments worksheet
+        try:
+            inst_sh = sh.spreadsheet.worksheet("Installments")
+        except Exception:
+            inst_sh = None
+            st.warning("⚠️ 'Installments' tab not found. Please create a sheet tab named 'Installments' for audit logging.")
 
-        # Render filtered table
-        st.dataframe(pending_table[display_cols].rename(columns={'Formatted Date': 'Date', 'Formatted Amount': 'Amount'}), use_container_width=True, hide_index=True)
+        # --- 1. GROUP BY CUSTOMER TO GET TOTAL CUMULATIVE PENDING BALANCE ---
+        cust_totals = pending_display.groupby('Customer Name')['Amount'].sum().reset_index()
+        cust_totals.rename(columns={'Amount': 'Total Balance Owed'}, inplace=True)
+        cust_totals = cust_totals.sort_values(by='Total Balance Owed', ascending=False).reset_index(drop=True)
+
+        st.markdown("#### 👥 Customer Outstanding Totals")
         
-        st.info(f"💡 Showing **£{pending_display['Amount'].sum():,.2f}** pending across **{len(pending_display)}** outstanding entries.")
+        # Display formatted table showing overall balance per customer
+        display_cust_table = cust_totals.copy()
+        display_cust_table['Total Balance Owed'] = display_cust_table['Total Balance Owed'].map('£{:,.2f}'.format)
+        st.dataframe(display_cust_table, use_container_width=True, hide_index=True)
+
+        st.info(f"💡 Total Pending across all customers: **£{total_pending:,.2f}**")
 
         st.markdown("---")
-        # 2. --- RECORD INSTALLMENT & VIEW PAYMENT HISTORY ---
-        st.markdown("#### 💳 Record Payment & View History")
-        
-        # Create a selectable list of individual pending jobs
-        pending_jobs_list = []
-        for idx, row in pending_display.iterrows():
-            item_label = row.get('Description', row.get('Item Name', row.get('Item', 'Job')))
-            p_date = pd.to_datetime(row['Date']).strftime('%d-%m-%Y')
-            pending_jobs_list.append(f"Row {idx+2} | {row['Customer Name']} - {item_label} (£{row['Amount']:,.2f}) [{p_date}]")
+        # --- 2. RECORD INSTALLMENT AGAINST TOTAL CUSTOMER BALANCE ---
+        st.markdown("#### 💳 Record Payment Against Total Customer Balance")
+
+        p_cust_list = cust_totals['Customer Name'].tolist()
+        selected_p_cust = st.selectbox("Select Customer Paying Installment:", p_cust_list)
+
+        if selected_p_cust:
+            # Calculate total owed by this specific customer across all pending sales rows
+            cust_total_owed = float(cust_totals[cust_totals['Customer Name'] == selected_p_cust]['Total Balance Owed'].values[0])
             
-        selected_job_str = st.selectbox("Select Job to View History or Apply Payment:", pending_jobs_list)
-        
-        if selected_job_str:
-            # Extract row index from selection string
-            sheet_row_num = int(selected_job_str.split(" | ")[0].replace("Row ", ""))
-            job_idx = sheet_row_num - 2  # Match zero-indexed dataframe row
-            selected_row = df.loc[job_idx]
-            
-            current_balance = float(selected_row['Amount'])
-            existing_notes = str(selected_row.get('Notes', ''))
-            
-            # --- 📜 INSTALLMENT HISTORY AUDIT TRAIL ---
-            if "Paid £" in existing_notes:
-                st.markdown("##### 📜 Payment History for this Job:")
-                
-                # Parse existing installment entries from Notes
-                history_entries = [entry.strip() for entry in existing_notes.split("|") if "Paid £" in entry]
-                
-                parsed_history = []
-                for entry in history_entries:
-                    # Example format: "Paid £10.00 via Cash on 26-09-2026"
-                    parsed_history.append({"Payment Record": entry})
-                    
-                st.table(pd.DataFrame(parsed_history))
-            else:
-                st.caption("ℹ️ No prior installments logged for this specific entry yet.")
+            # Fetch all individual pending sales rows for this customer
+            cust_sales_rows = pending_display[pending_display['Customer Name'] == selected_p_cust]
+
+            st.markdown(f"**Current Total Amount Owed by {selected_p_cust}:** :red[**£{cust_total_owed:,.2f}**]")
+
+            # --- DISPLAY PRIOR PAYMENT LOGS FOR THIS CUSTOMER FROM 'INSTALLMENTS' SHEET ---
+            if inst_sh:
+                try:
+                    inst_records = inst_sh.get_all_records()
+                    if inst_records:
+                        inst_df = pd.DataFrame(inst_records)
+                        cust_inst_df = inst_df[inst_df['Customer Name'] == selected_p_cust]
+                        if not cust_inst_df.empty:
+                            st.markdown("##### 📜 Recent Payment Log History:")
+                            st.dataframe(
+                                cust_inst_df[['Date', 'Amount Paid', 'Payment Type', 'Remaining Total Owed', 'Notes']], 
+                                use_container_width=True, 
+                                hide_index=True
+                            )
+                except Exception:
+                    pass
 
             st.write("")
-            st.markdown("##### ➕ Add New Installment Payment")
             p_col1, p_col2 = st.columns(2)
             with p_col1:
                 installment_paid = st.number_input(
-                    "Amount Paid (£):", 
-                    min_value=0.01, 
-                    max_value=current_balance, 
-                    value=min(10.0, current_balance), 
+                    "Installment Amount Paid (£):",
+                    min_value=0.01,
+                    max_value=cust_total_owed,
+                    value=min(20.0, cust_total_owed),
                     step=5.0
                 )
             with p_col2:
                 payment_method = st.selectbox("Payment Type:", ["Cash", "Bank Transfer", "Card"])
 
-            remaining_balance = current_balance - installment_paid
-            st.markdown(f"📉 **Current Remaining Balance:** ~~£{current_balance:,.2f}~~ ➡️ **£{remaining_balance:,.2f}**")
-            
-            if st.button("💾 Record Payment & Update Balance", type="primary", use_container_width=True):
+            inst_notes = st.text_input("Payment Note / Reference:", placeholder="e.g., Part payment for bat repair & grip")
+
+            new_total_owed = cust_total_owed - installment_paid
+            st.markdown(f"📉 **New Overall Balance Remaining:** ~~£{cust_total_owed:,.2f}~~ ➡️ **£{new_total_owed:,.2f}**")
+
+            if st.button("💾 Apply Payment to Customer Balance", type="primary", use_container_width=True):
                 try:
+                    today_str = pd.Timestamp.now().strftime("%Y-%m-%d")
+
+                    # 1. LOG ENTRY TO DEDICATED 'INSTALLMENTS' SHEET
+                    if inst_sh:
+                        inst_row = [
+                            today_str,
+                            selected_p_cust,
+                            float(installment_paid),
+                            payment_method,
+                            float(new_total_owed),
+                            inst_notes.strip()
+                        ]
+                        inst_sh.append_row(inst_row)
+
+                    # 2. PRO-RATA / WATERFALL REDUCTION ACROSS SALES ROWS
+                    # Reduce balance across customer's pending rows starting from the oldest sale
                     headers = sh.row_values(1)
-                    
                     amount_col_num = headers.index('Amount') + 1 if 'Amount' in headers else headers.index('total_calculated') + 1
                     status_col_num = headers.index('Status') + 1 if 'Status' in headers else None
-                    pay_type_col_num = headers.index('Payment Type') + 1 if 'Payment Type' in headers else None
-                    pay_date_col_num = headers.index('Payment Date') + 1 if 'Payment Date' in headers else None
-                    notes_col_num = headers.index('Notes') + 1 if 'Notes' in headers else None
-                    
-                    # 1. Update remaining balance in Amount column
-                    sh.update_cell(sheet_row_num, amount_col_num, remaining_balance)
-                    
-                    # 2. Update last payment type and date
-                    if pay_type_col_num:
-                        sh.update_cell(sheet_row_num, pay_type_col_num, payment_method)
-                    if pay_date_col_num:
-                        sh.update_cell(sheet_row_num, pay_date_col_num, pd.Timestamp.now().strftime("%Y-%m-%d"))
-                        
-                    # 3. Construct clean log entry for payment history
-                    payment_log_entry = f"Paid £{installment_paid:,.2f} via {payment_method} on {pd.Timestamp.now().strftime('%d-%m-%Y')} (Bal Left: £{remaining_balance:,.2f})"
-                    updated_notes = f"{existing_notes} | {payment_log_entry}".strip(" |")
-                    
-                    if notes_col_num:
-                        sh.update_cell(sheet_row_num, notes_col_num, updated_notes)
-                        
-                    # 4. Mark as Paid if completely settled
-                    if remaining_balance <= 0.001:
-                        if status_col_num:
-                            sh.update_cell(sheet_row_num, status_col_num, "Paid")
-                        st.success(f"🎉 Fully Settled! Balance reached £0.00. Job marked as 'Paid' for {selected_row['Customer Name']}.")
-                    else:
-                        st.success(f"✅ Installment of £{installment_paid:,.2f} recorded! New balance: £{remaining_balance:,.2f}")
 
+                    remaining_payment_to_apply = installment_paid
+
+                    for idx, s_row in cust_sales_rows.sort_values(by='Date', ascending=True).iterrows():
+                        if remaining_payment_to_apply <= 0:
+                            break
+
+                        sheet_row_num = idx + 2  # Match 1-indexed Google Sheet row
+                        row_amount = float(s_row['Amount'])
+
+                        if remaining_payment_to_apply >= row_amount:
+                            # Payment covers this entire sale row
+                            remaining_payment_to_apply -= row_amount
+                            sh.update_cell(sheet_row_num, amount_col_num, 0.0)
+                            if status_col_num:
+                                sh.update_cell(sheet_row_num, status_col_num, "Paid")
+                        else:
+                            # Payment partially covers this sale row
+                            new_row_amount = row_amount - remaining_payment_to_apply
+                            remaining_payment_to_apply = 0
+                            sh.update_cell(sheet_row_num, amount_col_num, new_row_amount)
+
+                    st.success(f"🎉 Payment of £{installment_paid:,.2f} recorded for {selected_p_cust}! New balance: £{new_total_owed:,.2f}")
                     st.cache_data.clear()
                     st.rerun()
-                    
+
                 except Exception as e:
-                    st.error(f"Failed to update payment in Google Sheets: {e}")
+                    st.error(f"Failed to record installment payment: {e}")
 
 else:
     st.success("✅ Awesome! There are currently no pending payments on your books.")
-
-
 
 
 # --- GOODS VS SERVICES ANALYSIS ---
