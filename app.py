@@ -430,9 +430,7 @@ st.markdown("---")
 
 if total_pending > 0:
     with st.expander("📋 View Customer Balances & Unpaid Items Breakdown", expanded=True):
-        # Force fresh numeric conversion on Amount
-        pending_df['Amount'] = pd.to_numeric(pending_df['Amount'], errors='coerce').fillna(0.0)
-        pending_display = pending_df[pending_df['Amount'] > 0].copy()
+        pending_display = pending_df.copy()
 
         # Connect to the Installments worksheet tab safely
         try:
@@ -440,160 +438,174 @@ if total_pending > 0:
         except Exception:
             inst_sh = None
 
-        # --- 1. CUMULATIVE CUSTOMER BALANCE TABLE ---
+        # --- 1. FETCH ALL PRIOR INSTALLMENTS FROM 'INSTALLMENTS' TAB ---
+        cust_installments_map = {}
+        if inst_sh:
+            try:
+                inst_records = inst_sh.get_all_records()
+                if inst_records:
+                    inst_df = pd.DataFrame(inst_records)
+                    if 'Customer Name' in inst_df.columns and 'Amount Paid' in inst_df.columns:
+                        inst_df['Amount Paid'] = pd.to_numeric(inst_df['Amount Paid'], errors='coerce').fillna(0.0)
+                        # Group total installments paid per customer
+                        cust_installments_map = inst_df.groupby('Customer Name')['Amount Paid'].sum().to_dict()
+            except Exception:
+                pass
+
+        # --- 2. CUMULATIVE CUSTOMER BALANCE TABLE ---
         cust_totals = pending_display.groupby('Customer Name')['Amount'].sum().reset_index()
-        cust_totals.rename(columns={'Amount': 'Total Owed'}, inplace=True)
-        cust_totals = cust_totals[cust_totals['Total Owed'] > 0].sort_values(by='Total Owed', ascending=False).reset_index(drop=True)
+        cust_totals.rename(columns={'Amount': 'Original Total Owed'}, inplace=True)
+        
+        # Deduct total installments paid from original sales sum
+        cust_totals['Total Installments Paid'] = cust_totals['Customer Name'].map(cust_installments_map).fillna(0.0)
+        cust_totals['Current Balance Owed'] = cust_totals['Original Total Owed'] - cust_totals['Total Installments Paid']
+        
+        # Filter out fully paid customers
+        cust_totals = cust_totals[cust_totals['Current Balance Owed'] > 0.001].sort_values(by='Current Balance Owed', ascending=False).reset_index(drop=True)
 
         st.markdown("#### 👥 Customer Outstanding Totals")
         
-        display_cust_table = cust_totals.copy()
-        display_cust_table['Total Owed'] = display_cust_table['Total Owed'].map('£{:,.2f}'.format)
+        display_cust_table = cust_totals[['Customer Name', 'Original Total Owed', 'Total Installments Paid', 'Current Balance Owed']].copy()
+        display_cust_table['Original Total Owed'] = display_cust_table['Original Total Owed'].map('£{:,.2f}'.format)
+        display_cust_table['Total Installments Paid'] = display_cust_table['Total Installments Paid'].map('£{:,.2f}'.format)
+        display_cust_table['Current Balance Owed'] = display_cust_table['Current Balance Owed'].map('£{:,.2f}'.format)
+        
         st.dataframe(display_cust_table, use_container_width=True, hide_index=True)
 
-        st.info(f"💡 Total Pending across all customers: **£{pending_display['Amount'].sum():,.2f}**")
+        total_net_pending = cust_totals['Current Balance Owed'].sum()
+        st.info(f"💡 Total Net Pending across all customers: **£{total_net_pending:,.2f}**")
 
         st.markdown("---")
         
-        # --- 2. ALWAYS ACCESSIBLE CUSTOMER SELECTOR & UNPAID ITEM BREAKDOWN ---
+        # --- 3. CUSTOMER INSPECTOR & INSTALLMENT LOGGER ---
         st.markdown("#### 🔍 Inspect Customer Unpaid Items & Pay Installment")
 
         p_cust_list = cust_totals['Customer Name'].tolist()
         
-        selected_p_cust = st.selectbox("Select Customer to Inspect:", p_cust_list)
+        if p_cust_list:
+            selected_p_cust = st.selectbox("Select Customer to Inspect:", p_cust_list)
 
-        if selected_p_cust:
-            # Fetch all individual unpaid items/sales rows for this specific customer
-            cust_unpaid_items = pending_display[pending_display['Customer Name'] == selected_p_cust].copy()
-            
-            # 🟢 Dynamically calculate the EXACT current balance from the updated Amount column
-            cust_total_owed = float(cust_unpaid_items['Amount'].sum())
+            if selected_p_cust:
+                cust_row_data = cust_totals[cust_totals['Customer Name'] == selected_p_cust].iloc[0]
+                
+                orig_owed = float(cust_row_data['Original Total Owed'])
+                paid_so_far = float(cust_row_data['Total Installments Paid'])
+                cust_net_balance = float(cust_row_data['Current Balance Owed'])
 
-            st.markdown(f"### Outstanding Balance for {selected_p_cust}: :red[**£{cust_total_owed:,.2f}**]")
-            
-            # Show detailed breakdown of all unpaid items for this customer
-            st.markdown("##### 🛒 Unpaid Items Breakdown:")
-            
-            cols_to_show = []
-            for col in ['Date', 'Item Name', 'Item', 'Description', 'Size', 'Qty', 'Quantity', 'Amount']:
-                if col in cust_unpaid_items.columns and col not in cols_to_show:
-                    cols_to_show.append(col)
-                    
-            unpaid_preview = cust_unpaid_items[cols_to_show].sort_values(by='Date', ascending=True).copy()
-            
-            if 'Date' in unpaid_preview.columns:
-                unpaid_preview['Date'] = pd.to_datetime(unpaid_preview['Date']).dt.strftime('%d-%m-%Y')
-            if 'Amount' in unpaid_preview.columns:
-                unpaid_preview['Amount'] = pd.to_numeric(unpaid_preview['Amount'], errors='coerce').map('£{:,.2f}'.format)
+                cust_unpaid_items = pending_display[pending_display['Customer Name'] == selected_p_cust].copy()
 
-            st.dataframe(unpaid_preview, use_container_width=True, hide_index=True)
+                # Display correct net balance calculations
+                st.markdown(f"### Outstanding Balance for {selected_p_cust}: :red[**£{cust_net_balance:,.2f}**]")
+                st.caption(f"📊 Total Sales: **£{orig_owed:,.2f}** | Total Paid via Installments: **£{paid_so_far:,.2f}**")
+                
+                # Show detailed item breakdown
+                st.markdown("##### 🛒 Unpaid Items Breakdown:")
+                
+                cols_to_show = []
+                for col in ['Date', 'Item Name', 'Item', 'Description', 'Size', 'Qty', 'Quantity', 'Amount']:
+                    if col in cust_unpaid_items.columns and col not in cols_to_show:
+                        cols_to_show.append(col)
+                        
+                unpaid_preview = cust_unpaid_items[cols_to_show].sort_values(by='Date', ascending=True).copy()
+                
+                if 'Date' in unpaid_preview.columns:
+                    unpaid_preview['Date'] = pd.to_datetime(unpaid_preview['Date']).dt.strftime('%d-%m-%Y')
+                if 'Amount' in unpaid_preview.columns:
+                    unpaid_preview['Amount'] = pd.to_numeric(unpaid_preview['Amount'], errors='coerce').map('£{:,.2f}'.format)
 
-            # --- DISPLAY PRIOR INSTALLMENT HISTORY FROM 'INSTALLMENTS' SHEET ---
-            if inst_sh:
-                try:
-                    inst_records = inst_sh.get_all_records()
-                    if inst_records:
-                        inst_df = pd.DataFrame(inst_records)
-                        cust_inst_df = inst_df[inst_df['Customer Name'] == selected_p_cust]
-                        if not cust_inst_df.empty:
-                            with st.expander("📜 View Past Installment Receipts for this Customer"):
-                                st.dataframe(
-                                    cust_inst_df[['Date', 'Amount Paid', 'Payment Type', 'Remaining Total Owed', 'Notes']], 
-                                    use_container_width=True, 
-                                    hide_index=True
-                                )
-                except Exception:
-                    pass
-                    
-            st.markdown("---")
-            st.markdown("##### 💳 Record New Installment Payment")
-            
-            p_col1, p_col2 = st.columns(2)
-            with p_col1:
-                installment_paid = st.number_input(
-                    "Installment Amount Paid (£):",
-                    min_value=0.01,
-                    max_value=max(0.01, cust_total_owed),
-                    value=min(10.0, max(0.01, cust_total_owed)),
-                    step=5.0
-                )
-            with p_col2:
-                payment_method = st.selectbox("Payment Type:", ["Cash", "Bank Transfer", "Card"])
+                st.dataframe(unpaid_preview, use_container_width=True, hide_index=True)
 
-            d_col1, d_col2 = st.columns(2)
-            with d_col1:
-                installment_date = st.date_input(
-                    "Payment Date:", 
-                    value=pd.Timestamp.now()
-                )
-            with d_col2:
-                inst_notes = st.text_input(
-                    "Payment Note / Reference:", 
-                    placeholder="e.g., Part payment via transfer"
-                )
+                # --- DISPLAY PRIOR INSTALLMENT HISTORY FROM 'INSTALLMENTS' SHEET ---
+                if inst_sh:
+                    try:
+                        inst_records = inst_sh.get_all_records()
+                        if inst_records:
+                            inst_df = pd.DataFrame(inst_records)
+                            cust_inst_df = inst_df[inst_df['Customer Name'] == selected_p_cust]
+                            if not cust_inst_df.empty:
+                                with st.expander("📜 View Past Installment Receipts for this Customer"):
+                                    st.dataframe(
+                                        cust_inst_df[['Date', 'Amount Paid', 'Payment Type', 'Remaining Total Owed', 'Notes']], 
+                                        use_container_width=True, 
+                                        hide_index=True
+                                    )
+                    except Exception:
+                        pass
+                        
+                st.markdown("---")
+                st.markdown("##### 💳 Record New Installment Payment")
+                
+                p_col1, p_col2 = st.columns(2)
+                with p_col1:
+                    installment_paid = st.number_input(
+                        "Installment Amount Paid (£):",
+                        min_value=0.01,
+                        max_value=max(0.01, cust_net_balance),
+                        value=min(10.0, max(0.01, cust_net_balance)),
+                        step=5.0
+                    )
+                with p_col2:
+                    payment_method = st.selectbox("Payment Type:", ["Cash", "Bank Transfer", "Card"])
 
-            new_total_owed = cust_total_owed - installment_paid
-            st.markdown(f"📉 **New Balance Remaining:** ~~£{cust_total_owed:,.2f}~~ ➡️ **£{new_total_owed:,.2f}**")
+                d_col1, d_col2 = st.columns(2)
+                with d_col1:
+                    installment_date = st.date_input(
+                        "Payment Date:", 
+                        value=pd.Timestamp.now()
+                    )
+                with d_col2:
+                    inst_notes = st.text_input(
+                        "Payment Note / Reference:", 
+                        placeholder="e.g., Part payment via transfer"
+                    )
 
-            if st.button("💾 Apply Payment to Customer Balance", type="primary", use_container_width=True):
-                try:
-                    payment_date_str = installment_date.strftime("%Y-%m-%d")
+                new_total_owed = cust_net_balance - installment_paid
+                st.markdown(f"📉 **New Balance Remaining:** ~~£{cust_net_balance:,.2f}~~ ➡️ **£{new_total_owed:,.2f}**")
 
-                    # 1. LOG ENTRY TO DEDICATED 'INSTALLMENTS' SHEET IF IT EXISTS
-                    if inst_sh:
-                        inst_row = [
-                            payment_date_str,
-                            selected_p_cust,
-                            float(installment_paid),
-                            payment_method,
-                            float(new_total_owed),
-                            inst_notes.strip()
-                        ]
-                        inst_sh.append_row(inst_row)
+                if st.button("💾 Apply Payment to Customer Balance", type="primary", use_container_width=True):
+                    try:
+                        payment_date_str = installment_date.strftime("%Y-%m-%d")
 
-                    # 2. WATERFALL REDUCTION ACROSS SALES ROWS
-                    headers = sh.row_values(1)
-                    amount_col_num = headers.index('Amount') + 1 if 'Amount' in headers else headers.index('total_calculated') + 1
-                    status_col_num = headers.index('Status') + 1 if 'Status' in headers else None
-                    pay_date_col_num = headers.index('Payment Date') + 1 if 'Payment Date' in headers else None
-                    pay_type_col_num = headers.index('Payment Type') + 1 if 'Payment Type' in headers else None
+                        # 1. LOG ENTRY TO DEDICATED 'INSTALLMENTS' SHEET
+                        if inst_sh:
+                            inst_row = [
+                                payment_date_str,
+                                selected_p_cust,
+                                float(installment_paid),
+                                payment_method,
+                                float(new_total_owed),
+                                inst_notes.strip()
+                            ]
+                            inst_sh.append_row(inst_row)
 
-                    remaining_payment_to_apply = installment_paid
+                        # 2. IF FULLY SETTLED (NEW BALANCE IS £0.00), MARK ALL SALES ROWS AS PAID
+                        if new_total_owed <= 0.001:
+                            headers = sh.row_values(1)
+                            status_col_num = headers.index('Status') + 1 if 'Status' in headers else None
+                            pay_date_col_num = headers.index('Payment Date') + 1 if 'Payment Date' in headers else None
+                            pay_type_col_num = headers.index('Payment Type') + 1 if 'Payment Type' in headers else None
 
-                    for idx, s_row in cust_unpaid_items.sort_values(by='Date', ascending=True).iterrows():
-                        if remaining_payment_to_apply <= 0:
-                            break
+                            for idx, s_row in cust_unpaid_items.iterrows():
+                                sheet_row_num = idx + 2
+                                if status_col_num:
+                                    sh.update_cell(sheet_row_num, status_col_num, "Paid")
+                                if pay_date_col_num:
+                                    sh.update_cell(sheet_row_num, pay_date_col_num, payment_date_str)
+                                if pay_type_col_num:
+                                    sh.update_cell(sheet_row_num, pay_type_col_num, payment_method)
 
-                        sheet_row_num = idx + 2  # Match 1-indexed Google Sheet row
-                        row_amount = float(s_row['Amount'])
+                        st.success(f"🎉 Payment of £{installment_paid:,.2f} on {installment_date.strftime('%d-%m-%Y')} recorded for {selected_p_cust}! Remaining balance: £{new_total_owed:,.2f}")
+                        st.cache_data.clear()
+                        st.cache_resource.clear()
+                        st.rerun()
 
-                        if pay_date_col_num:
-                            sh.update_cell(sheet_row_num, pay_date_col_num, payment_date_str)
-                        if pay_type_col_num:
-                            sh.update_cell(sheet_row_num, pay_type_col_num, payment_method)
-
-                        if remaining_payment_to_apply >= row_amount:
-                            remaining_payment_to_apply -= row_amount
-                            sh.update_cell(sheet_row_num, amount_col_num, 0.0)
-                            if status_col_num:
-                                sh.update_cell(sheet_row_num, status_col_num, "Paid")
-                        else:
-                            new_row_amount = row_amount - remaining_payment_to_apply
-                            remaining_payment_to_apply = 0
-                            sh.update_cell(sheet_row_num, amount_col_num, new_row_amount)
-
-                    st.success(f"🎉 Payment of £{installment_paid:,.2f} on {installment_date.strftime('%d-%m-%Y')} recorded for {selected_p_cust}! Remaining balance: £{new_total_owed:,.2f}")
-                    st.cache_data.clear()
-                    st.cache_resource.clear()
-                    st.rerun()
-
-                except Exception as e:
-                    st.error(f"Failed to record installment payment: {e}")
+                    except Exception as e:
+                        st.error(f"Failed to record installment payment: {e}")
+        else:
+            st.info("No customer pending balances available.")
 
 else:
     st.success("✅ Awesome! There are currently no pending payments on your books.")
-
-
 
 # --- GOODS VS SERVICES ANALYSIS ---
 with st.expander("⚖️ View Goods vs Services Revenue Split"):
