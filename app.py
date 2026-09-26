@@ -461,7 +461,25 @@ if total_pending > 0:
 else:
     st.success("✅ Awesome! There are currently no pending payments on your books.")
 
+# Inside elif page == "Dashboard":
 
+st.divider()
+st.subheader("⚠️ Outstanding Payments (Pending)")
+
+# Fetch pending items from both tables
+pending_inv = pd.read_sql("SELECT name, vendor, sell_price FROM inventory WHERE status = 'Pending'", conn)
+pending_svc = pd.read_sql("SELECT service_name, customer_name, price FROM services WHERE status = 'Pending'", conn)
+
+if not pending_inv.empty or not pending_svc.empty:
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+        st.write("**Pending Gear Sales**")
+        st.dataframe(pending_inv)
+    with col_p2:
+        st.write("**Pending Services**")
+        st.dataframe(pending_svc)
+else:
+    st.success("All payments are up to date! ✅")
 
 
 
