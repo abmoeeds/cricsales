@@ -1104,43 +1104,61 @@ def create_pdf(customer_name, customer_data):
     pdf.set_font("Arial", 'B', 14)
     pdf.cell(0, 10, f"INVOICE: {customer_name}", ln=True)
     pdf.set_font("Arial", '', 12)
-    pdf.cell(0, 10, f"Date: {pd.Timestamp.now().strftime('%d/%m/%Y')}", ln=True)
+    pdf.cell(0, 10, f"Issued Date: {pd.Timestamp.now().strftime('%d/%m/%Y')}", ln=True)
     pdf.ln(5)
     
-    # 3. Table Header
+    # 3. Table Header (Adjusted widths to fit Date column: 30 + 55 + 20 + 37.5 + 37.5 = 180mm)
     pdf.set_fill_color(200, 220, 255)
     pdf.set_font("Arial", 'B', 10)
-    pdf.cell(70, 10, "Item", 1, 0, 'C', True)
-    pdf.cell(30, 10, "Qty", 1, 0, 'C', True)
-    pdf.cell(40, 10, "Unit Price", 1, 0, 'C', True)
-    pdf.cell(40, 10, "Total", 1, 1, 'C', True)
+    pdf.cell(30, 10, "Date", 1, 0, 'C', True)
+    pdf.cell(55, 10, "Item", 1, 0, 'C', True)
+    pdf.cell(20, 10, "Qty", 1, 0, 'C', True)
+    pdf.cell(37.5, 10, "Unit Price", 1, 0, 'C', True)
+    pdf.cell(37.5, 10, "Total", 1, 1, 'C', True)
     
     # 4. Table Content
-    pdf.set_font("Arial", '', 10)
+    pdf.set_font("Arial", '', 9)
     total_invoice_amount = 0
+    
     for _, row in customer_data.iterrows():
-        pdf.cell(70, 10, str(row['Item Name']), 1)
-        pdf.cell(30, 10, str(int(row['Quantity'])), 1, 0, 'C')
-        pdf.cell(40, 10, f"GBP {row['Unit Price']:.2f}", 1, 0, 'R')
-        pdf.cell(40, 10, f"GBP {row['Amount']:.2f}", 1, 1, 'R')
-        total_invoice_amount += row['Amount']
+        # Format Date safely
+        raw_date = row.get('Date', '')
+        try:
+            item_date = pd.to_datetime(raw_date).strftime('%d/%m/%Y')
+        except Exception:
+            item_date = str(raw_date)
+
+        # Fallback handling for column names
+        item_name = str(row.get('Item Name', row.get('Item', row.get('Description', 'N/A'))))
+        qty = int(row.get('Quantity', row.get('Qty', 1)))
+        unit_price = float(row.get('Unit Price', 0.0))
+        amount = float(row.get('Amount', row.get('total_calculated', 0.0)))
+
+        # Truncate long item names if necessary so they don't break table alignment
+        if len(item_name) > 28:
+            item_name = item_name[:25] + "..."
+
+        pdf.cell(30, 10, item_date, 1, 0, 'C')
+        pdf.cell(55, 10, item_name, 1, 0, 'L')
+        pdf.cell(20, 10, str(qty), 1, 0, 'C')
+        pdf.cell(37.5, 10, f"GBP {unit_price:.2f}", 1, 0, 'R')
+        pdf.cell(37.5, 10, f"GBP {amount:.2f}", 1, 1, 'R')
+        
+        total_invoice_amount += amount
         
     # 5. Grand Total
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(140, 10, "Grand Total", 1, 0, 'R')
-    pdf.cell(40, 10, f"GBP {total_invoice_amount:.2f}", 1, 1, 'R')
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(142.5, 10, "Grand Total", 1, 0, 'R')
+    pdf.cell(37.5, 10, f"GBP {total_invoice_amount:.2f}", 1, 1, 'R')
     
     # 6. FOOTER: Thank You Message
-    # Move to 20mm from bottom
     pdf.set_y(-40) 
-    pdf.set_font("Arial", 'I', 10) # 'I' for Italic
+    pdf.set_font("Arial", 'I', 10)
     pdf.cell(0, 10, "Thank you for your business!", ln=True, align='C')
     
-    # Optional: Add a line for a signature or stamp
     pdf.line(70, pdf.get_y(), 140, pdf.get_y())
     
     return pdf.output(dest='S').encode('latin-1')
-
 
 
 # --- INVOICE UI SECTION ---
@@ -1229,20 +1247,32 @@ else:
             inv_date_str = pd.Timestamp.now().strftime("%d-%m-%Y")
 
 # --- DISPLAY PREVIEW & DOWNLOAD BUTTON ---
+# --- DISPLAY PREVIEW & DOWNLOAD BUTTON ---
 if not selected_sales.empty:
     st.write(f"Previewing items for **{inv_customer_name}** ({inv_date_str}):")
     
-    # Identify relevant display columns dynamically
-    cols_to_display = []
-    for col in ['Date', 'Customer Name', 'Item Name', 'Item', 'Description', 'Quantity', 'Qty', 'Amount', 'total_calculated']:
-        if col in selected_sales.columns and col not in cols_to_display:
+    # 🟢 1. Create a clean copy with Date formatted as DD-MM-YYYY
+    preview_df = selected_sales.copy()
+    if 'Date' in preview_df.columns:
+        preview_df['Formatted Date'] = pd.to_datetime(preview_df['Date']).dt.strftime('%d-%m-%Y')
+    else:
+        preview_df['Formatted Date'] = 'N/A'
+
+    # Determine column order — putting 'Formatted Date' FIRST so it displays clearly
+    cols_to_display = ['Formatted Date']
+    for col in ['Customer Name', 'Item Name', 'Item', 'Description', 'Size', 'Quantity', 'Qty', 'Unit Price', 'Amount', 'total_calculated']:
+        if col in preview_df.columns and col not in cols_to_display:
             cols_to_display.append(col)
             
-    # Display preview table
-    st.dataframe(selected_sales[cols_to_display], use_container_width=True, hide_index=True)
+    # Display preview table with Date included
+    st.dataframe(
+        preview_df[cols_to_display].rename(columns={'Formatted Date': 'Date'}), 
+        use_container_width=True, 
+        hide_index=True
+    )
     
-    # Generate PDF and render download button
-    pdf_bytes = create_pdf(inv_customer_name, selected_sales)
+    # 🟢 2. Pass the updated dataframe with dates to your create_pdf function
+    pdf_bytes = create_pdf(inv_customer_name, preview_df)
     
     file_label = inv_customer_name.replace(' ', '_').replace('(', '').replace(')', '')
     st.download_button(
