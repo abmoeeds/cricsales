@@ -506,7 +506,7 @@ if total_pending > 0:
                 except Exception:
                     pass
 
-            st.markdown("---")
+           st.markdown("---")
             st.markdown("##### 💳 Record New Installment Payment")
             
             p_col1, p_col2 = st.columns(2)
@@ -521,19 +521,31 @@ if total_pending > 0:
             with p_col2:
                 payment_method = st.selectbox("Payment Type:", ["Cash", "Bank Transfer", "Card"])
 
-            inst_notes = st.text_input("Payment Note / Reference:", placeholder="e.g., Part payment for bat repair & grip")
+            # 🆕 Added Payment Date and Notes Fields
+            d_col1, d_col2 = st.columns(2)
+            with d_col1:
+                installment_date = st.date_input(
+                    "Payment Date:", 
+                    value=pd.Timestamp.now()
+                )
+            with d_col2:
+                inst_notes = st.text_input(
+                    "Payment Note / Reference:", 
+                    placeholder="e.g., Part payment via transfer"
+                )
 
             new_total_owed = cust_total_owed - installment_paid
             st.markdown(f"📉 **New Balance Remaining:** ~~£{cust_total_owed:,.2f}~~ ➡️ **£{new_total_owed:,.2f}**")
 
             if st.button("💾 Apply Payment to Customer Balance", type="primary", use_container_width=True):
                 try:
-                    today_str = pd.Timestamp.now().strftime("%Y-%m-%d")
+                    # Format the custom payment date selected by user
+                    payment_date_str = installment_date.strftime("%Y-%m-%d")
 
                     # 1. LOG ENTRY TO DEDICATED 'INSTALLMENTS' SHEET IF IT EXISTS
                     if inst_sh:
                         inst_row = [
-                            today_str,
+                            payment_date_str,  # 🟢 Custom selected payment date
                             selected_p_cust,
                             float(installment_paid),
                             payment_method,
@@ -546,6 +558,8 @@ if total_pending > 0:
                     headers = sh.row_values(1)
                     amount_col_num = headers.index('Amount') + 1 if 'Amount' in headers else headers.index('total_calculated') + 1
                     status_col_num = headers.index('Status') + 1 if 'Status' in headers else None
+                    pay_date_col_num = headers.index('Payment Date') + 1 if 'Payment Date' in headers else None
+                    pay_type_col_num = headers.index('Payment Type') + 1 if 'Payment Type' in headers else None
 
                     remaining_payment_to_apply = installment_paid
 
@@ -555,6 +569,12 @@ if total_pending > 0:
 
                         sheet_row_num = idx + 2  # Match 1-indexed Google Sheet row
                         row_amount = float(s_row['Amount'])
+
+                        # Update Payment Date and Payment Type on the Sales sheet
+                        if pay_date_col_num:
+                            sh.update_cell(sheet_row_num, pay_date_col_num, payment_date_str)
+                        if pay_type_col_num:
+                            sh.update_cell(sheet_row_num, pay_type_col_num, payment_method)
 
                         if remaining_payment_to_apply >= row_amount:
                             remaining_payment_to_apply -= row_amount
@@ -566,7 +586,7 @@ if total_pending > 0:
                             remaining_payment_to_apply = 0
                             sh.update_cell(sheet_row_num, amount_col_num, new_row_amount)
 
-                    st.success(f"🎉 Payment of £{installment_paid:,.2f} recorded for {selected_p_cust}! Remaining balance: £{new_total_owed:,.2f}")
+                    st.success(f"🎉 Payment of £{installment_paid:,.2f} on {installment_date.strftime('%d-%m-%Y')} recorded for {selected_p_cust}! Remaining balance: £{new_total_owed:,.2f}")
                     st.cache_data.clear()
                     st.rerun()
 
