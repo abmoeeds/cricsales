@@ -440,6 +440,7 @@ if total_pending > 0:
 
         # --- 1. FETCH ALL PRIOR INSTALLMENTS FROM 'INSTALLMENTS' TAB ---
         cust_installments_map = {}
+        inst_records = []
         if inst_sh:
             try:
                 inst_records = inst_sh.get_all_records()
@@ -447,7 +448,6 @@ if total_pending > 0:
                     inst_df = pd.DataFrame(inst_records)
                     if 'Customer Name' in inst_df.columns and 'Amount Paid' in inst_df.columns:
                         inst_df['Amount Paid'] = pd.to_numeric(inst_df['Amount Paid'], errors='coerce').fillna(0.0)
-                        # Group total installments paid per customer
                         cust_installments_map = inst_df.groupby('Customer Name')['Amount Paid'].sum().to_dict()
             except Exception:
                 pass
@@ -456,11 +456,9 @@ if total_pending > 0:
         cust_totals = pending_display.groupby('Customer Name')['Amount'].sum().reset_index()
         cust_totals.rename(columns={'Amount': 'Original Total Owed'}, inplace=True)
         
-        # Deduct total installments paid from original sales sum
         cust_totals['Total Installments Paid'] = cust_totals['Customer Name'].map(cust_installments_map).fillna(0.0)
         cust_totals['Current Balance Owed'] = cust_totals['Original Total Owed'] - cust_totals['Total Installments Paid']
         
-        # Filter out fully paid customers
         cust_totals = cust_totals[cust_totals['Current Balance Owed'] > 0.001].sort_values(by='Current Balance Owed', ascending=False).reset_index(drop=True)
 
         st.markdown("#### 👥 Customer Outstanding Totals")
@@ -494,11 +492,9 @@ if total_pending > 0:
 
                 cust_unpaid_items = pending_display[pending_display['Customer Name'] == selected_p_cust].copy()
 
-                # Display correct net balance calculations
                 st.markdown(f"### Outstanding Balance for {selected_p_cust}: :red[**£{cust_net_balance:,.2f}**]")
                 st.caption(f"📊 Total Sales: **£{orig_owed:,.2f}** | Total Paid via Installments: **£{paid_so_far:,.2f}**")
                 
-                # Show detailed item breakdown
                 st.markdown("##### 🛒 Unpaid Items Breakdown:")
                 
                 cols_to_show = []
@@ -515,22 +511,70 @@ if total_pending > 0:
 
                 st.dataframe(unpaid_preview, use_container_width=True, hide_index=True)
 
-                # --- DISPLAY PRIOR INSTALLMENT HISTORY FROM 'INSTALLMENTS' SHEET ---
-                if inst_sh:
-                    try:
-                        inst_records = inst_sh.get_all_records()
-                        if inst_records:
-                            inst_df = pd.DataFrame(inst_records)
-                            cust_inst_df = inst_df[inst_df['Customer Name'] == selected_p_cust]
-                            if not cust_inst_df.empty:
-                                with st.expander("📜 View Past Installment Receipts for this Customer"):
-                                    st.dataframe(
-                                        cust_inst_df[['Date', 'Amount Paid', 'Payment Type', 'Remaining Total Owed', 'Notes']], 
-                                        use_container_width=True, 
-                                        hide_index=True
+                # --- 📜 DISPLAY & MANAGE PRIOR INSTALLMENT RECEIPTS ---
+                if inst_sh and inst_records:
+                    inst_df = pd.DataFrame(inst_records)
+                    
+                    if 'Customer Name' in inst_df.columns:
+                        # Find all installment row indices for this customer (adding 2 for 1-based index + header row)
+                        cust_inst_df = inst_df[inst_df['Customer Name'] == selected_p_cust].copy()
+                        
+                        if not cust_inst_df.empty:
+                            with st.expander("📜 View & Manage Past Installment Receipts"):
+                                st.dataframe(
+                                    cust_inst_df[['Date', 'Amount Paid', 'Payment Type', 'Remaining Total Owed', 'Notes']], 
+                                    use_container_width=True, 
+                                    hide_index=True
+                                )
+                                
+                                st.markdown("##### ⚙️ Edit or Delete a Specific Installment Receipt")
+                                
+                                # Construct options list with row index references
+                                receipt_options = []
+                                for orig_idx, r_row in cust_inst_df.iterrows():
+                                    sheet_row = orig_idx + 2  # 1-indexed sheet adjustment
+                                    receipt_options.append(
+                                        f"Row {sheet_row} | {r_row['Date']} — £{float(r_row['Amount Paid']):,.2f} ({r_row['Payment Type']})"
                                     )
-                    except Exception:
-                        pass
+                                
+                                selected_receipt_str = st.selectbox("Select Receipt Entry to Modify:", receipt_options)
+                                
+                                if selected_receipt_str:
+                                    target_sheet_row = int(selected_receipt_str.split(" | ")[0].replace("Row ", ""))
+                                    
+                                    edit_col1, edit_col2 = st.columns(2)
+                                    with edit_col1:
+                                        # Delete Action Button
+                                        if st.button("🗑️ Delete This Receipt", type="secondary", use_container_width=True):
+                                            try:
+                                                inst_sh.delete_rows(target_sheet_row)
+                                                st.success(f"🗑️ Installment receipt on Row {target_sheet_row} deleted successfully!")
+                                                st.cache_data.clear()
+                                                st.cache_resource.clear()
+                                                st.rerun()
+                                            except Exception as e:
+                                                st.error(f"Failed to delete receipt: {e}")
+                                                
+                                    with edit_col2:
+                                        # Update Amount Action
+                                        new_corrected_amount = st.number_input(
+                                            "Corrected Amount (£):", 
+                                            min_value=0.01, 
+                                            value=10.0, 
+                                            step=5.0,
+                                            key=f"edit_amt_{target_sheet_row}"
+                                        )
+                                        if st.button("✏️ Update Receipt Amount", type="primary", use_container_width=True):
+                                            try:
+                                                headers = inst_sh.row_values(1)
+                                                amt_col = headers.index('Amount Paid') + 1 if 'Amount Paid' in headers else 3
+                                                inst_sh.update_cell(target_sheet_row, amt_col, float(new_corrected_amount))
+                                                st.success(f"✏️ Receipt updated to £{new_corrected_amount:,.2f}!")
+                                                st.cache_data.clear()
+                                                st.cache_resource.clear()
+                                                st.rerun()
+                                            except Exception as e:
+                                                st.error(f"Failed to update receipt: {e}")
                         
                 st.markdown("---")
                 st.markdown("##### 💳 Record New Installment Payment")
@@ -606,6 +650,7 @@ if total_pending > 0:
 
 else:
     st.success("✅ Awesome! There are currently no pending payments on your books.")
+
 
 # --- GOODS VS SERVICES ANALYSIS ---
 with st.expander("⚖️ View Goods vs Services Revenue Split"):
