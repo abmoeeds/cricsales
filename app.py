@@ -511,12 +511,11 @@ if total_pending > 0:
 
                 st.dataframe(unpaid_preview, use_container_width=True, hide_index=True)
 
-                # --- 📜 DISPLAY & MANAGE PRIOR INSTALLMENT RECEIPTS ---
+# --- 📜 DISPLAY & MANAGE PRIOR INSTALLMENT RECEIPTS ---
                 if inst_sh and inst_records:
                     inst_df = pd.DataFrame(inst_records)
                     
                     if 'Customer Name' in inst_df.columns:
-                        # Find all installment row indices for this customer (adding 2 for 1-based index + header row)
                         cust_inst_df = inst_df[inst_df['Customer Name'] == selected_p_cust].copy()
                         
                         if not cust_inst_df.empty:
@@ -527,6 +526,27 @@ if total_pending > 0:
                                     hide_index=True
                                 )
                                 
+                                # 🟢 🆕 Generate Installment Receipt PDF Button
+                                try:
+                                    inst_pdf_bytes = create_installment_pdf(
+                                        customer_name=selected_p_cust,
+                                        inst_data=cust_inst_df,
+                                        total_sales_amount=orig_owed,
+                                        current_balance=cust_net_balance
+                                    )
+                                    
+                                    clean_cust_filename = selected_p_cust.replace(' ', '_').replace('/', '_')
+                                    st.download_button(
+                                        label="📄 Download Installment Statement PDF",
+                                        data=inst_pdf_bytes,
+                                        file_name=f"Installment_Statement_{clean_cust_filename}.pdf",
+                                        mime="application/pdf",
+                                        use_container_width=True
+                                    )
+                                except Exception as e:
+                                    st.warning(f"Unable to build PDF download: {e}")
+                                
+                                st.markdown("---")
                                 st.markdown("##### ⚙️ Edit or Delete a Specific Installment Receipt")
                                 
                                 # Construct options list with row index references
