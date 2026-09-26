@@ -1160,6 +1160,82 @@ def create_pdf(customer_name, customer_data):
     
     return pdf.output(dest='S').encode('latin-1')
 
+def create_installment_pdf(customer_name, inst_data, total_sales_amount, current_balance):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # 1. Company Header
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(0, 10, "SMZ Sports", ln=True, align='C')
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(0, 5, "149 St Pauls Avenue, Slough SL2 5EN", ln=True, align='C')
+    pdf.ln(10)
+    
+    # 2. Document Title & Customer Info
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 10, f"INSTALLMENT PAYMENT RECEIPT & STATEMENT", ln=True, align='C')
+    pdf.ln(5)
+    
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(0, 7, f"Customer Name: {customer_name}", ln=True)
+    pdf.cell(0, 7, f"Statement Issued Date: {pd.Timestamp.now().strftime('%d/%m/%Y')}", ln=True)
+    pdf.ln(5)
+    
+    # 3. Financial Summary Box
+    pdf.set_fill_color(240, 240, 240)
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(60, 8, f" Total Sales Value: GBP {total_sales_amount:.2f}", 1, 0, 'L', True)
+    pdf.cell(60, 8, f" Total Paid to Date: GBP {(total_sales_amount - current_balance):.2f}", 1, 0, 'L', True)
+    pdf.cell(60, 8, f" Current Balance Due: GBP {current_balance:.2f}", 1, 1, 'L', True)
+    pdf.ln(8)
+    
+    # 4. Installments Table Header (Widths: 35 + 35 + 40 + 70 = 180mm)
+    pdf.set_fill_color(200, 220, 255)
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(35, 10, "Payment Date", 1, 0, 'C', True)
+    pdf.cell(35, 10, "Amount Paid", 1, 0, 'C', True)
+    pdf.cell(40, 10, "Payment Method", 1, 0, 'C', True)
+    pdf.cell(70, 10, "Notes / Reference", 1, 1, 'C', True)
+    
+    # 5. Table Rows
+    pdf.set_font("Arial", '', 9)
+    total_inst_paid = 0.0
+    
+    for _, row in inst_data.iterrows():
+        raw_date = row.get('Date', '')
+        try:
+            pay_date = pd.to_datetime(raw_date).strftime('%d/%m/%Y')
+        except Exception:
+            pay_date = str(raw_date)
+            
+        amt_paid = float(row.get('Amount Paid', 0.0))
+        pay_type = str(row.get('Payment Type', 'N/A'))
+        notes = str(row.get('Notes', '-'))
+        
+        if len(notes) > 38:
+            notes = notes[:35] + "..."
+            
+        pdf.cell(35, 10, pay_date, 1, 0, 'C')
+        pdf.cell(35, 10, f"GBP {amt_paid:.2f}", 1, 0, 'R')
+        pdf.cell(40, 10, pay_type, 1, 0, 'C')
+        pdf.cell(70, 10, notes, 1, 1, 'L')
+        
+        total_inst_paid += amt_paid
+        
+    # 6. Table Total
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(35, 10, "Total Paid", 1, 0, 'R')
+    pdf.cell(35, 10, f"GBP {total_inst_paid:.2f}", 1, 1, 'R')
+    
+    # 7. Footer
+    pdf.set_y(-40)
+    pdf.set_font("Arial", 'I', 10)
+    pdf.cell(0, 10, "Thank you for your business with SMZ Sports!", ln=True, align='C')
+    pdf.line(70, pdf.get_y(), 140, pdf.get_y())
+    
+    return pdf.output(dest='S').encode('latin-1')
+
+
 
 # --- INVOICE UI SECTION ---
 st.markdown("---")
