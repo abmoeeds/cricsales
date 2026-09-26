@@ -963,71 +963,110 @@ def create_pdf(customer_name, customer_data):
 st.markdown("---")
 st.subheader("🧾 Generate Customer Invoice")
 
-st.markdown("#### 🔍 Select Invoice Criteria")
+st.markdown("#### 🔍 Select Invoice Filter Criteria")
 
-# 1. Select Customer Name
-cust_list = sorted(df['Customer Name'].dropna().unique().tolist())
-selected_cust = st.selectbox("1. Select Customer Name:", cust_list)
+# 1. Choose how you want to filter
+filter_mode = st.radio(
+    "Filter Invoice By:",
+    ["Customer Name", "Specific Date(s)", "Both (Customer + Date)"],
+    horizontal=True
+)
 
 selected_sales = pd.DataFrame()
 inv_customer_name = ""
 inv_date_str = ""
 
-if selected_cust:
-    inv_customer_name = selected_cust
+# --- OPTION 1: CUSTOMER NAME ONLY ---
+if filter_mode == "Customer Name":
+    cust_list = sorted(df['Customer Name'].dropna().unique().tolist())
+    selected_cust = st.selectbox("Select Customer Name:", cust_list)
     
-    # Filter records for this customer
-    cust_df = df[df['Customer Name'] == selected_cust].copy()
-    
-    # Extract unique dates for this customer (newest first)
-    available_dates = sorted(
-        pd.to_datetime(cust_df['Date']).dt.strftime('%Y-%m-%d').unique().tolist(), 
+    if selected_cust:
+        inv_customer_name = selected_cust
+        selected_sales = df[df['Customer Name'] == selected_cust].copy()
+        inv_date_str = pd.Timestamp.now().strftime("%d-%m-%Y")
+
+# --- OPTION 2: SPECIFIC DATE(S) ONLY ---
+elif filter_mode == "Specific Date(s)":
+    # Extract all unique dates from the entire dataset
+    all_dates = sorted(
+        pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d').unique().tolist(),
         reverse=True
     )
     
-    # 2. Select Multiple Dates via Multiselect
     selected_dates = st.multiselect(
-        "2. Select Date(s) to include in Invoice (Leave empty for All Dates):",
-        options=available_dates,
-        default=[]  # Default empty means all dates included
+        "Select Date(s) for Invoice:",
+        options=all_dates,
+        default=[]
     )
     
-    # Filter customer sales based on selected dates
     if selected_dates:
-        selected_sales = cust_df[
-            pd.to_datetime(cust_df['Date']).dt.strftime('%Y-%m-%d').isin(selected_dates)
-        ]
+        selected_sales = df[
+            pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d').isin(selected_dates)
+        ].copy()
+        
+        inv_customer_name = "All Customers (Daily Summary)"
         if len(selected_dates) == 1:
             inv_date_str = pd.to_datetime(selected_dates[0]).strftime("%d-%m-%Y")
         else:
             inv_date_str = f"Multiple ({len(selected_dates)} dates)"
-    else:
-        # Include all transactions if no dates picked
-        selected_sales = cust_df
-        inv_date_str = pd.Timestamp.now().strftime("%d-%m-%Y")
+
+# --- OPTION 3: BOTH (CUSTOMER + DATE) ---
+else:
+    cust_list = sorted(df['Customer Name'].dropna().unique().tolist())
+    selected_cust = st.selectbox("1. Select Customer Name:", cust_list)
+    
+    if selected_cust:
+        inv_customer_name = selected_cust
+        cust_df = df[df['Customer Name'] == selected_cust].copy()
+        
+        # Get dates relevant ONLY to this customer
+        cust_dates = sorted(
+            pd.to_datetime(cust_df['Date']).dt.strftime('%Y-%m-%d').unique().tolist(),
+            reverse=True
+        )
+        
+        selected_dates = st.multiselect(
+            "2. Select Date(s) to include (Leave empty for All Dates):",
+            options=cust_dates,
+            default=[]
+        )
+        
+        if selected_dates:
+            selected_sales = cust_df[
+                pd.to_datetime(cust_df['Date']).dt.strftime('%Y-%m-%d').isin(selected_dates)
+            ]
+            if len(selected_dates) == 1:
+                inv_date_str = pd.to_datetime(selected_dates[0]).strftime("%d-%m-%Y")
+            else:
+                inv_date_str = f"Multiple ({len(selected_dates)} dates)"
+        else:
+            selected_sales = cust_df
+            inv_date_str = pd.Timestamp.now().strftime("%d-%m-%Y")
 
 # --- DISPLAY PREVIEW & DOWNLOAD BUTTON ---
 if not selected_sales.empty:
     st.write(f"Previewing items for **{inv_customer_name}** ({inv_date_str}):")
     
-    # Determine the correct column names present in your DataFrame
+    # Identify relevant display columns dynamically
     cols_to_display = []
-    for col in ['Date', 'Item Name', 'Item', 'Description', 'Quantity', 'Qty', 'Amount', 'total_calculated']:
-        if col in selected_sales.columns:
+    for col in ['Date', 'Customer Name', 'Item Name', 'Item', 'Description', 'Quantity', 'Qty', 'Amount', 'total_calculated']:
+        if col in selected_sales.columns and col not in cols_to_display:
             cols_to_display.append(col)
             
-    # Show preview table using filtered records
+    # Display preview table
     st.dataframe(selected_sales[cols_to_display], use_container_width=True, hide_index=True)
     
-    # Generate and render PDF download button
+    # Generate PDF and render download button
     pdf_bytes = create_pdf(inv_customer_name, selected_sales)
     
+    file_label = inv_customer_name.replace(' ', '_').replace('(', '').replace(')', '')
     st.download_button(
         label="📥 Download PDF Invoice",
         data=pdf_bytes,
-        file_name=f"Invoice_{inv_customer_name.replace(' ', '_')}.pdf",
+        file_name=f"Invoice_{file_label}.pdf",
         mime="application/pdf",
         use_container_width=True
     )
 else:
-    st.info("No matching records found for the selected criteria.")
+    st.info("ℹ️ Select your filter choices above to display the invoice preview.")
