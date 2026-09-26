@@ -974,52 +974,54 @@ selected_sales = pd.DataFrame()
 inv_customer_name = ""
 inv_date_str = ""
 
+st.markdown("#### 🔍 Select Invoice Criteria")
 
-if search_mode == "Customer Name":
-    # --- EXISTING CUSTOMER NAME FILTER ---
-    cust_list = sorted(df['Customer Name'].dropna().unique().tolist())
-    selected_cust = st.selectbox("Select Customer Name:", cust_list)
-    
-    if selected_cust:
-        cust_df = df[df['Customer Name'] == selected_cust].copy()
-        
-        # Optional: Narrow down by date if they have multiple transactions
-        cust_dates = sorted(pd.to_datetime(cust_df['Date']).dt.strftime('%Y-%m-%d').unique().tolist(), reverse=True)
-        cust_dates.insert(0, "All Dates (Combined Invoice)")
-        selected_date = st.selectbox("Select Transaction Date:", cust_dates)
-        
-        if selected_date == "All Dates (Combined Invoice)":
-            selected_sales = cust_df
-            inv_date_str = datetime.now().strftime("%d-%m-%Y")
-        else:
-            selected_sales = cust_df[pd.to_datetime(cust_df['Date']).dt.strftime('%Y-%m-%d') == selected_date]
-            inv_date_str = pd.to_datetime(selected_date).strftime("%d-%m-%Y")
-            
-        inv_customer_name = selected_cust
+# 1. Select Customer Name first
+cust_list = sorted(df['Customer Name'].dropna().unique().tolist())
+selected_cust = st.selectbox("1. Select Customer Name:", cust_list)
 
-else:
-    # --- 🆕 NEW DATE-BASED FILTER ---
-    # Get all unique dates from your sales data sorted newest first
-    unique_dates = sorted(pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d').unique().tolist(), reverse=True)
-    selected_date = st.selectbox("Select Invoice Date:", unique_dates)
+selected_sales = pd.DataFrame()
+inv_customer_name = ""
+inv_date_str = ""
+
+if selected_cust:
+    inv_customer_name = selected_cust
     
-    if selected_date:
-        # Get all sales recorded on this exact date
-        date_df = df[pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d') == selected_date].copy()
+    # Filter records for this customer
+    cust_df = df[df['Customer Name'] == selected_cust].copy()
+    
+    # Extract unique dates for this customer (newest first)
+    available_dates = sorted(
+        pd.to_datetime(cust_df['Date']).dt.strftime('%Y-%m-%d').unique().tolist(), 
+        reverse=True
+    )
+    
+    # 2. Select Multiple Dates via Multiselect
+    selected_dates = st.multiselect(
+        "2. Select Date(s) to include in Invoice (Leave empty for All Dates):",
+        options=available_dates,
+        default=[]  # Default empty means all dates included
+    )
+    
+    # Filter customer sales based on selected dates
+    if selected_dates:
+        # Match any of the selected dates
+        selected_sales = cust_df[
+            pd.to_datetime(cust_df['Date']).dt.strftime('%Y-%m-%d').isin(selected_dates)
+        ]
         
-        # Allow picking a specific customer who bought on this date or pulling a combined daily invoice
-        date_custs = sorted(date_df['Customer Name'].dropna().unique().tolist())
-        date_custs.insert(0, "All Customers on this Date")
-        selected_cust = st.selectbox("Select Customer on this Date:", date_custs)
-        
-        if selected_cust == "All Customers on this Date":
-            selected_sales = date_df
-            inv_customer_name = "Daily Summary / General Client"
+        # Format dates for invoice header
+        if len(selected_dates) == 1:
+            inv_date_str = pd.to_datetime(selected_dates[0]).strftime("%d-%m-%Y")
         else:
-            selected_sales = date_df[date_df['Customer Name'] == selected_cust]
-            inv_customer_name = selected_cust
-            
-        inv_date_str = pd.to_datetime(selected_date).strftime("%d-%m-%Y")
+            inv_date_str = f"Multiple ({len(selected_dates)} dates)"
+    else:
+        # If no specific dates selected, include all transactions for this customer
+        selected_sales = cust_df
+        # 🔐 Fix: Replaced datetime.now() with pd.Timestamp.now() to eliminate the AttributeError
+        inv_date_str = pd.Timestamp.now().strftime("%d-%m-%Y")
+
+
 
 
 
