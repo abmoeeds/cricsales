@@ -505,8 +505,8 @@ if total_pending > 0:
                                 )
                 except Exception:
                     pass
-
-           st.markdown("---")
+                    
+            st.markdown("---")
             st.markdown("##### 💳 Record New Installment Payment")
             
             p_col1, p_col2 = st.columns(2)
@@ -521,7 +521,7 @@ if total_pending > 0:
             with p_col2:
                 payment_method = st.selectbox("Payment Type:", ["Cash", "Bank Transfer", "Card"])
 
-            # 🆕 Added Payment Date and Notes Fields
+            # Payment Date and Notes Fields
             d_col1, d_col2 = st.columns(2)
             with d_col1:
                 installment_date = st.date_input(
@@ -545,7 +545,7 @@ if total_pending > 0:
                     # 1. LOG ENTRY TO DEDICATED 'INSTALLMENTS' SHEET IF IT EXISTS
                     if inst_sh:
                         inst_row = [
-                            payment_date_str,  # 🟢 Custom selected payment date
+                            payment_date_str,
                             selected_p_cust,
                             float(installment_paid),
                             payment_method,
