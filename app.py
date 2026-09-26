@@ -430,7 +430,9 @@ st.markdown("---")
 
 if total_pending > 0:
     with st.expander("📋 View Customer Balances & Unpaid Items Breakdown", expanded=True):
-        pending_display = pending_df.copy()
+        # Force fresh numeric conversion on Amount
+        pending_df['Amount'] = pd.to_numeric(pending_df['Amount'], errors='coerce').fillna(0.0)
+        pending_display = pending_df[pending_df['Amount'] > 0].copy()
 
         # Connect to the Installments worksheet tab safely
         try:
@@ -441,7 +443,7 @@ if total_pending > 0:
         # --- 1. CUMULATIVE CUSTOMER BALANCE TABLE ---
         cust_totals = pending_display.groupby('Customer Name')['Amount'].sum().reset_index()
         cust_totals.rename(columns={'Amount': 'Total Owed'}, inplace=True)
-        cust_totals = cust_totals.sort_values(by='Total Owed', ascending=False).reset_index(drop=True)
+        cust_totals = cust_totals[cust_totals['Total Owed'] > 0].sort_values(by='Total Owed', ascending=False).reset_index(drop=True)
 
         st.markdown("#### 👥 Customer Outstanding Totals")
         
@@ -449,7 +451,7 @@ if total_pending > 0:
         display_cust_table['Total Owed'] = display_cust_table['Total Owed'].map('£{:,.2f}'.format)
         st.dataframe(display_cust_table, use_container_width=True, hide_index=True)
 
-        st.info(f"💡 Total Pending across all customers: **£{total_pending:,.2f}**")
+        st.info(f"💡 Total Pending across all customers: **£{pending_display['Amount'].sum():,.2f}**")
 
         st.markdown("---")
         
@@ -458,22 +460,20 @@ if total_pending > 0:
 
         p_cust_list = cust_totals['Customer Name'].tolist()
         
-        # Always available customer dropdown
         selected_p_cust = st.selectbox("Select Customer to Inspect:", p_cust_list)
 
         if selected_p_cust:
-            # Extract total balance owed
-            cust_total_owed = float(cust_totals[cust_totals['Customer Name'] == selected_p_cust]['Total Owed'].values[0])
-            
             # Fetch all individual unpaid items/sales rows for this specific customer
             cust_unpaid_items = pending_display[pending_display['Customer Name'] == selected_p_cust].copy()
+            
+            # 🟢 Dynamically calculate the EXACT current balance from the updated Amount column
+            cust_total_owed = float(cust_unpaid_items['Amount'].sum())
 
             st.markdown(f"### Outstanding Balance for {selected_p_cust}: :red[**£{cust_total_owed:,.2f}**]")
             
             # Show detailed breakdown of all unpaid items for this customer
             st.markdown("##### 🛒 Unpaid Items Breakdown:")
             
-            # Clean up display columns dynamically
             cols_to_show = []
             for col in ['Date', 'Item Name', 'Item', 'Description', 'Size', 'Qty', 'Quantity', 'Amount']:
                 if col in cust_unpaid_items.columns and col not in cols_to_show:
@@ -481,11 +481,10 @@ if total_pending > 0:
                     
             unpaid_preview = cust_unpaid_items[cols_to_show].sort_values(by='Date', ascending=True).copy()
             
-            # Format display
             if 'Date' in unpaid_preview.columns:
                 unpaid_preview['Date'] = pd.to_datetime(unpaid_preview['Date']).dt.strftime('%d-%m-%Y')
             if 'Amount' in unpaid_preview.columns:
-                unpaid_preview['Amount'] = unpaid_preview['Amount'].map('£{:,.2f}'.format)
+                unpaid_preview['Amount'] = pd.to_numeric(unpaid_preview['Amount'], errors='coerce').map('£{:,.2f}'.format)
 
             st.dataframe(unpaid_preview, use_container_width=True, hide_index=True)
 
@@ -514,14 +513,13 @@ if total_pending > 0:
                 installment_paid = st.number_input(
                     "Installment Amount Paid (£):",
                     min_value=0.01,
-                    max_value=cust_total_owed,
-                    value=min(10.0, cust_total_owed),
+                    max_value=max(0.01, cust_total_owed),
+                    value=min(10.0, max(0.01, cust_total_owed)),
                     step=5.0
                 )
             with p_col2:
                 payment_method = st.selectbox("Payment Type:", ["Cash", "Bank Transfer", "Card"])
 
-            # Payment Date and Notes Fields
             d_col1, d_col2 = st.columns(2)
             with d_col1:
                 installment_date = st.date_input(
@@ -539,7 +537,6 @@ if total_pending > 0:
 
             if st.button("💾 Apply Payment to Customer Balance", type="primary", use_container_width=True):
                 try:
-                    # Format the custom payment date selected by user
                     payment_date_str = installment_date.strftime("%Y-%m-%d")
 
                     # 1. LOG ENTRY TO DEDICATED 'INSTALLMENTS' SHEET IF IT EXISTS
@@ -570,7 +567,6 @@ if total_pending > 0:
                         sheet_row_num = idx + 2  # Match 1-indexed Google Sheet row
                         row_amount = float(s_row['Amount'])
 
-                        # Update Payment Date and Payment Type on the Sales sheet
                         if pay_date_col_num:
                             sh.update_cell(sheet_row_num, pay_date_col_num, payment_date_str)
                         if pay_type_col_num:
@@ -587,18 +583,16 @@ if total_pending > 0:
                             sh.update_cell(sheet_row_num, amount_col_num, new_row_amount)
 
                     st.success(f"🎉 Payment of £{installment_paid:,.2f} on {installment_date.strftime('%d-%m-%Y')} recorded for {selected_p_cust}! Remaining balance: £{new_total_owed:,.2f}")
-                   
-                    # Clear all Streamlit cached data so the re-read fetches fresh numbers from Google Sheets
                     st.cache_data.clear()
                     st.cache_resource.clear()
                     st.rerun()
-                    
 
                 except Exception as e:
                     st.error(f"Failed to record installment payment: {e}")
 
 else:
     st.success("✅ Awesome! There are currently no pending payments on your books.")
+
 
 
 # --- GOODS VS SERVICES ANALYSIS ---
