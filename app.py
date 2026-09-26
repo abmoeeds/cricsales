@@ -461,25 +461,7 @@ if total_pending > 0:
 else:
     st.success("✅ Awesome! There are currently no pending payments on your books.")
 
-# Inside elif page == "Dashboard":
 
-st.divider()
-st.subheader("⚠️ Outstanding Payments (Pending)")
-
-# Fetch pending items from both tables
-pending_inv = pd.read_sql("SELECT name, vendor, sell_price FROM inventory WHERE status = 'Pending'", conn)
-pending_svc = pd.read_sql("SELECT service_name, customer_name, price FROM services WHERE status = 'Pending'", conn)
-
-if not pending_inv.empty or not pending_svc.empty:
-    col_p1, col_p2 = st.columns(2)
-    with col_p1:
-        st.write("**Pending Gear Sales**")
-        st.dataframe(pending_inv)
-    with col_p2:
-        st.write("**Pending Services**")
-        st.dataframe(pending_svc)
-else:
-    st.success("All payments are up to date! ✅")
 
 
 
@@ -980,6 +962,121 @@ st.markdown("---")
 st.subheader("🧾 Generate Customer Invoice")
 
 col_inv1, col_inv2 = st.columns([2, 1])
+
+# Replace your existing Customer Name selection input with this dual-search block:
+
+st.markdown("#### 🔍 Select Invoice Criteria")
+
+# 1. Choose how you want to find the sales records
+search_mode = st.radio("Generate Invoice By:", ["Customer Name", "Specific Date"], horizontal=True)
+
+selected_sales = pd.DataFrame()
+inv_customer_name = ""
+inv_date_str = ""
+
+
+st.markdown("#### 🔍 Select Invoice Criteria")
+
+# 1. First, select the Customer Name
+cust_list = sorted(df['Customer Name'].dropna().unique().tolist())
+selected_cust = st.selectbox("1. Select Customer Name:", cust_list)
+
+selected_sales = pd.DataFrame()
+inv_customer_name = ""
+inv_date_str = ""
+
+if selected_cust:
+    inv_customer_name = selected_cust
+    
+    # Filter records for this customer
+    cust_df = df[df['Customer Name'] == selected_cust].copy()
+    
+    # Extract unique dates for this customer (newest first)
+    available_dates = sorted(
+        pd.to_datetime(cust_df['Date']).dt.strftime('%Y-%m-%d').unique().tolist(), 
+        reverse=True
+    )
+    
+    # 2. Select Multiple Dates via Multiselect
+    selected_dates = st.multiselect(
+        "2. Select Date(s) to include in Invoice (Leave empty for All Dates):",
+        options=available_dates,
+        default=[]  # Default empty means all dates included
+    )
+    
+    # Filter customer sales based on selected dates
+    if selected_dates:
+        # Match any of the selected dates
+        selected_sales = cust_df[
+            pd.to_datetime(cust_df['Date']).dt.strftime('%Y-%m-%d').isin(selected_dates)
+        ]
+        
+        # Format dates for invoice header
+        if len(selected_dates) == 1:
+            inv_date_str = pd.to_datetime(selected_dates[0]).strftime("%d-%m-%Y")
+        else:
+            inv_date_str = f"Multiple ({len(selected_dates)} dates)"
+    else:
+        # If no specific dates selected, include all transactions for this customer
+        selected_sales = cust_df
+        inv_date_str = "All Dates (Combined)"
+
+
+
+
+
+
+
+
+
+
+if search_mode == "Customer Name":
+    # --- EXISTING CUSTOMER NAME FILTER ---
+    cust_list = sorted(df['Customer Name'].dropna().unique().tolist())
+    selected_cust = st.selectbox("Select Customer Name:", cust_list)
+    
+    if selected_cust:
+        cust_df = df[df['Customer Name'] == selected_cust].copy()
+        
+        # Optional: Narrow down by date if they have multiple transactions
+        cust_dates = sorted(pd.to_datetime(cust_df['Date']).dt.strftime('%Y-%m-%d').unique().tolist(), reverse=True)
+        cust_dates.insert(0, "All Dates (Combined Invoice)")
+        selected_date = st.selectbox("Select Transaction Date:", cust_dates)
+        
+        if selected_date == "All Dates (Combined Invoice)":
+            selected_sales = cust_df
+            inv_date_str = datetime.now().strftime("%d-%m-%Y")
+        else:
+            selected_sales = cust_df[pd.to_datetime(cust_df['Date']).dt.strftime('%Y-%m-%d') == selected_date]
+            inv_date_str = pd.to_datetime(selected_date).strftime("%d-%m-%Y")
+            
+        inv_customer_name = selected_cust
+
+else:
+    # --- 🆕 NEW DATE-BASED FILTER ---
+    # Get all unique dates from your sales data sorted newest first
+    unique_dates = sorted(pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d').unique().tolist(), reverse=True)
+    selected_date = st.selectbox("Select Invoice Date:", unique_dates)
+    
+    if selected_date:
+        # Get all sales recorded on this exact date
+        date_df = df[pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d') == selected_date].copy()
+        
+        # Allow picking a specific customer who bought on this date or pulling a combined daily invoice
+        date_custs = sorted(date_df['Customer Name'].dropna().unique().tolist())
+        date_custs.insert(0, "All Customers on this Date")
+        selected_cust = st.selectbox("Select Customer on this Date:", date_custs)
+        
+        if selected_cust == "All Customers on this Date":
+            selected_sales = date_df
+            inv_customer_name = "Daily Summary / General Client"
+        else:
+            selected_sales = date_df[date_df['Customer Name'] == selected_cust]
+            inv_customer_name = selected_cust
+            
+        inv_date_str = pd.to_datetime(selected_date).strftime("%d-%m-%Y")
+
+
 
 with col_inv1:
     # Select distinct customers from your data
