@@ -465,8 +465,8 @@ if total_pending > 0:
         st.info(f"💡 Showing **£{pending_display['Amount'].sum():,.2f}** pending across **{len(pending_display)}** outstanding entries.")
 
         st.markdown("---")
-        # 2. --- RECORD INSTALLMENT / PARTIAL PAYMENT FORM ---
-        st.markdown("#### 💳 Record Payment / Installment")
+        # 2. --- RECORD INSTALLMENT & VIEW PAYMENT HISTORY ---
+        st.markdown("#### 💳 Record Payment & View History")
         
         # Create a selectable list of individual pending jobs
         pending_jobs_list = []
@@ -475,7 +475,7 @@ if total_pending > 0:
             p_date = pd.to_datetime(row['Date']).strftime('%d-%m-%Y')
             pending_jobs_list.append(f"Row {idx+2} | {row['Customer Name']} - {item_label} (£{row['Amount']:,.2f}) [{p_date}]")
             
-        selected_job_str = st.selectbox("Select Pending Job to Apply Payment:", pending_jobs_list)
+        selected_job_str = st.selectbox("Select Job to View History or Apply Payment:", pending_jobs_list)
         
         if selected_job_str:
             # Extract row index from selection string
@@ -484,7 +484,26 @@ if total_pending > 0:
             selected_row = df.loc[job_idx]
             
             current_balance = float(selected_row['Amount'])
+            existing_notes = str(selected_row.get('Notes', ''))
             
+            # --- 📜 INSTALLMENT HISTORY AUDIT TRAIL ---
+            if "Paid £" in existing_notes:
+                st.markdown("##### 📜 Payment History for this Job:")
+                
+                # Parse existing installment entries from Notes
+                history_entries = [entry.strip() for entry in existing_notes.split("|") if "Paid £" in entry]
+                
+                parsed_history = []
+                for entry in history_entries:
+                    # Example format: "Paid £10.00 via Cash on 26-09-2026"
+                    parsed_history.append({"Payment Record": entry})
+                    
+                st.table(pd.DataFrame(parsed_history))
+            else:
+                st.caption("ℹ️ No prior installments logged for this specific entry yet.")
+
+            st.write("")
+            st.markdown("##### ➕ Add New Installment Payment")
             p_col1, p_col2 = st.columns(2)
             with p_col1:
                 installment_paid = st.number_input(
@@ -498,39 +517,40 @@ if total_pending > 0:
                 payment_method = st.selectbox("Payment Type:", ["Cash", "Bank Transfer", "Card"])
 
             remaining_balance = current_balance - installment_paid
-            st.caption(f"Remaining balance after this payment: **£{remaining_balance:,.2f}**")
+            st.markdown(f"📉 **Current Remaining Balance:** ~~£{current_balance:,.2f}~~ ➡️ **£{remaining_balance:,.2f}**")
             
-            if st.button("💾 Record Payment", type="primary", use_container_width=True):
+            if st.button("💾 Record Payment & Update Balance", type="primary", use_container_width=True):
                 try:
-                    # 1. Identify Google Sheet column indices dynamically
                     headers = sh.row_values(1)
                     
-                    # Look up column numbers (1-indexed for gspread)
                     amount_col_num = headers.index('Amount') + 1 if 'Amount' in headers else headers.index('total_calculated') + 1
                     status_col_num = headers.index('Status') + 1 if 'Status' in headers else None
                     pay_type_col_num = headers.index('Payment Type') + 1 if 'Payment Type' in headers else None
                     pay_date_col_num = headers.index('Payment Date') + 1 if 'Payment Date' in headers else None
                     notes_col_num = headers.index('Notes') + 1 if 'Notes' in headers else None
                     
-                    # 2. Update Amount cell with new remaining balance
+                    # 1. Update remaining balance in Amount column
                     sh.update_cell(sheet_row_num, amount_col_num, remaining_balance)
                     
-                    # 3. Update Payment Type and Payment Date
+                    # 2. Update last payment type and date
                     if pay_type_col_num:
                         sh.update_cell(sheet_row_num, pay_type_col_num, payment_method)
                     if pay_date_col_num:
                         sh.update_cell(sheet_row_num, pay_date_col_num, pd.Timestamp.now().strftime("%Y-%m-%d"))
                         
-                    # 4. If balance is 0, mark status as "Paid", otherwise append to Notes
+                    # 3. Construct clean log entry for payment history
+                    payment_log_entry = f"Paid £{installment_paid:,.2f} via {payment_method} on {pd.Timestamp.now().strftime('%d-%m-%Y')} (Bal Left: £{remaining_balance:,.2f})"
+                    updated_notes = f"{existing_notes} | {payment_log_entry}".strip(" |")
+                    
+                    if notes_col_num:
+                        sh.update_cell(sheet_row_num, notes_col_num, updated_notes)
+                        
+                    # 4. Mark as Paid if completely settled
                     if remaining_balance <= 0.001:
                         if status_col_num:
                             sh.update_cell(sheet_row_num, status_col_num, "Paid")
-                        st.success(f"🎉 Fully Paid! Job marked as 'Paid' for {selected_row['Customer Name']}.")
+                        st.success(f"🎉 Fully Settled! Balance reached £0.00. Job marked as 'Paid' for {selected_row['Customer Name']}.")
                     else:
-                        if notes_col_num:
-                            existing_note = str(selected_row.get('Notes', ''))
-                            new_note = f"{existing_note} | Paid £{installment_paid:,.2f} via {payment_method} on {pd.Timestamp.now().strftime('%d-%m-%Y')}".strip(" |")
-                            sh.update_cell(sheet_row_num, notes_col_num, new_note)
                         st.success(f"✅ Installment of £{installment_paid:,.2f} recorded! New balance: £{remaining_balance:,.2f}")
 
                     st.cache_data.clear()
@@ -541,8 +561,6 @@ if total_pending > 0:
 
 else:
     st.success("✅ Awesome! There are currently no pending payments on your books.")
-
-
 
 
 
