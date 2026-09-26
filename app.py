@@ -429,39 +429,118 @@ if not df.empty and 'Date' in df.columns:
 st.markdown("---")
 
 if total_pending > 0:
-    with st.expander(f"📋 View Pending Payments Details ({pending_count} Jobs Outline)"):
-        # Select relevant columns for quick mobile scanning
-        # (Adjust column names here to match your Google Sheet exactly)
+    with st.expander(f"📋 View Pending Payments & Record Installments ({pending_count} Jobs Outline)"):
         pending_display = pending_df.copy()
         
-        # Ensure proper columns exist before displaying
+        # 1. --- FILTER BY PENDING CUSTOMER ---
+        pending_cust_list = ["All Pending Customers"] + sorted(pending_display['Customer Name'].dropna().unique().tolist())
+        selected_p_cust = st.selectbox("🔍 Filter Pending Jobs by Customer:", pending_cust_list)
+        
+        if selected_p_cust != "All Pending Customers":
+            pending_display = pending_display[pending_display['Customer Name'] == selected_p_cust]
+
+        # Determine columns to display safely
         columns_to_show = ['Date', 'Customer Name', 'Amount']
-        # Optional: Add item/service details column if you have one, e.g., 'Description' or 'Items'
         if 'Description' in pending_display.columns:
             columns_to_show.append('Description')
+        elif 'Item Name' in pending_display.columns:
+            columns_to_show.append('Item Name')
             
-        # Filter to show only necessary columns and sort by oldest first
-        pending_table = pending_display[columns_to_show].sort_values(by='Date', ascending=True)
+        pending_table = pending_display[columns_to_show].sort_values(by='Date', ascending=True).copy()
         
-        # Format the Date for crisp mobile display (DD-MM-YYYY)
-        pending_table['Date'] = pd.to_datetime(pending_table['Date']).dt.strftime('%d-%m-%Y')
+        # Format for clean mobile table viewing
+        pending_table['Formatted Date'] = pd.to_datetime(pending_table['Date']).dt.strftime('%d-%m-%Y')
+        pending_table['Formatted Amount'] = pending_table['Amount'].map('£{:,.2f}'.format)
         
-        # Format the Amount column to display beautifully as currency
-        pending_table['Amount'] = pending_table['Amount'].map('£{:,.2f}'.format)
+        display_cols = ['Formatted Date', 'Customer Name']
+        if 'Description' in pending_table.columns:
+            display_cols.append('Description')
+        elif 'Item Name' in pending_table.columns:
+            display_cols.append('Item Name')
+        display_cols.append('Formatted Amount')
+
+        # Render filtered table
+        st.dataframe(pending_table[display_cols].rename(columns={'Formatted Date': 'Date', 'Formatted Amount': 'Amount'}), use_container_width=True, hide_index=True)
         
-        # Reset index so it reads cleanly as 1, 2, 3...
-        pending_table = pending_table.reset_index(drop=True)
-        pending_table.index += 1
+        st.info(f"💡 Showing **£{pending_display['Amount'].sum():,.2f}** pending across **{len(pending_display)}** outstanding entries.")
+
+        st.markdown("---")
+        # 2. --- RECORD INSTALLMENT / PARTIAL PAYMENT FORM ---
+        st.markdown("#### 💳 Record Payment / Installment")
         
-        # Render the interactive dataframe table
-        st.dataframe(pending_table, use_container_width=True)
+        # Create a selectable list of individual pending jobs
+        pending_jobs_list = []
+        for idx, row in pending_display.iterrows():
+            item_label = row.get('Description', row.get('Item Name', row.get('Item', 'Job')))
+            p_date = pd.to_datetime(row['Date']).strftime('%d-%m-%Y')
+            pending_jobs_list.append(f"Row {idx+2} | {row['Customer Name']} - {item_label} (£{row['Amount']:,.2f}) [{p_date}]")
+            
+        selected_job_str = st.selectbox("Select Pending Job to Apply Payment:", pending_jobs_list)
         
-        # Quick Summary Tip Box
-        st.info(f"💡 You have **£{total_pending:,.2f}** tied up across **{pending_count}** outstanding entries. The table is sorted with your oldest unpaid jobs at the top.")
+        if selected_job_str:
+            # Extract row index from selection string
+            sheet_row_num = int(selected_job_str.split(" | ")[0].replace("Row ", ""))
+            job_idx = sheet_row_num - 2  # Match zero-indexed dataframe row
+            selected_row = df.loc[job_idx]
+            
+            current_balance = float(selected_row['Amount'])
+            
+            p_col1, p_col2 = st.columns(2)
+            with p_col1:
+                installment_paid = st.number_input(
+                    "Amount Paid (£):", 
+                    min_value=0.01, 
+                    max_value=current_balance, 
+                    value=min(10.0, current_balance), 
+                    step=5.0
+                )
+            with p_col2:
+                payment_method = st.selectbox("Payment Type:", ["Cash", "Bank Transfer", "Card"])
+
+            remaining_balance = current_balance - installment_paid
+            st.caption(f"Remaining balance after this payment: **£{remaining_balance:,.2f}**")
+            
+            if st.button("💾 Record Payment", type="primary", use_container_width=True):
+                try:
+                    # 1. Identify Google Sheet column indices dynamically
+                    headers = sh.row_values(1)
+                    
+                    # Look up column numbers (1-indexed for gspread)
+                    amount_col_num = headers.index('Amount') + 1 if 'Amount' in headers else headers.index('total_calculated') + 1
+                    status_col_num = headers.index('Status') + 1 if 'Status' in headers else None
+                    pay_type_col_num = headers.index('Payment Type') + 1 if 'Payment Type' in headers else None
+                    pay_date_col_num = headers.index('Payment Date') + 1 if 'Payment Date' in headers else None
+                    notes_col_num = headers.index('Notes') + 1 if 'Notes' in headers else None
+                    
+                    # 2. Update Amount cell with new remaining balance
+                    sh.update_cell(sheet_row_num, amount_col_num, remaining_balance)
+                    
+                    # 3. Update Payment Type and Payment Date
+                    if pay_type_col_num:
+                        sh.update_cell(sheet_row_num, pay_type_col_num, payment_method)
+                    if pay_date_col_num:
+                        sh.update_cell(sheet_row_num, pay_date_col_num, pd.Timestamp.now().strftime("%Y-%m-%d"))
+                        
+                    # 4. If balance is 0, mark status as "Paid", otherwise append to Notes
+                    if remaining_balance <= 0.001:
+                        if status_col_num:
+                            sh.update_cell(sheet_row_num, status_col_num, "Paid")
+                        st.success(f"🎉 Fully Paid! Job marked as 'Paid' for {selected_row['Customer Name']}.")
+                    else:
+                        if notes_col_num:
+                            existing_note = str(selected_row.get('Notes', ''))
+                            new_note = f"{existing_note} | Paid £{installment_paid:,.2f} via {payment_method} on {pd.Timestamp.now().strftime('%d-%m-%Y')}".strip(" |")
+                            sh.update_cell(sheet_row_num, notes_col_num, new_note)
+                        st.success(f"✅ Installment of £{installment_paid:,.2f} recorded! New balance: £{remaining_balance:,.2f}")
+
+                    st.cache_data.clear()
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"Failed to update payment in Google Sheets: {e}")
+
 else:
     st.success("✅ Awesome! There are currently no pending payments on your books.")
-
-
 
 
 
