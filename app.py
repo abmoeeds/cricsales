@@ -975,61 +975,6 @@ inv_customer_name = ""
 inv_date_str = ""
 
 
-st.markdown("#### 🔍 Select Invoice Criteria")
-
-# 1. First, select the Customer Name
-cust_list = sorted(df['Customer Name'].dropna().unique().tolist())
-selected_cust = st.selectbox("1. Select Customer Name:", cust_list)
-
-selected_sales = pd.DataFrame()
-inv_customer_name = ""
-inv_date_str = ""
-
-if selected_cust:
-    inv_customer_name = selected_cust
-    
-    # Filter records for this customer
-    cust_df = df[df['Customer Name'] == selected_cust].copy()
-    
-    # Extract unique dates for this customer (newest first)
-    available_dates = sorted(
-        pd.to_datetime(cust_df['Date']).dt.strftime('%Y-%m-%d').unique().tolist(), 
-        reverse=True
-    )
-    
-    # 2. Select Multiple Dates via Multiselect
-    selected_dates = st.multiselect(
-        "2. Select Date(s) to include in Invoice (Leave empty for All Dates):",
-        options=available_dates,
-        default=[]  # Default empty means all dates included
-    )
-    
-    # Filter customer sales based on selected dates
-    if selected_dates:
-        # Match any of the selected dates
-        selected_sales = cust_df[
-            pd.to_datetime(cust_df['Date']).dt.strftime('%Y-%m-%d').isin(selected_dates)
-        ]
-        
-        # Format dates for invoice header
-        if len(selected_dates) == 1:
-            inv_date_str = pd.to_datetime(selected_dates[0]).strftime("%d-%m-%Y")
-        else:
-            inv_date_str = f"Multiple ({len(selected_dates)} dates)"
-    else:
-        # If no specific dates selected, include all transactions for this customer
-        selected_sales = cust_df
-        inv_date_str = "All Dates (Combined)"
-
-
-
-
-
-
-
-
-
-
 if search_mode == "Customer Name":
     # --- EXISTING CUSTOMER NAME FILTER ---
     cust_list = sorted(df['Customer Name'].dropna().unique().tolist())
