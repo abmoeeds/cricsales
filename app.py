@@ -1351,116 +1351,100 @@ def create_installment_pdf(customer_name, inst_data, total_sales_amount, current
 st.markdown("---")
 st.subheader("🧾 Generate Customer Invoice")
 
-st.markdown("#### 🔍 Select Invoice Filter Criteria")
-
-# Choose filter mode
-filter_mode = st.radio(
-    "Filter Invoice By:",
-    ["Customer Name", "Specific Date(s)", "Both (Customer + Date)"],
-    horizontal=True
-)
-
 selected_sales = pd.DataFrame()
 inv_customer_name = ""
 inv_date_str = ""
 
-# --- OPTION 1: CUSTOMER NAME ONLY ---
-if filter_mode == "Customer Name":
-    cust_list = sorted(df['Customer Name'].dropna().unique().tolist())
-    selected_cust = st.selectbox("Select Customer Name:", cust_list)
-    
-    if selected_cust:
-        inv_customer_name = selected_cust
-        selected_sales = df[df['Customer Name'] == selected_cust].copy()
-        inv_date_str = pd.Timestamp.now().strftime("%d-%m-%Y")
+# Wrap criteria selections inside a form so it only runs when submitted
+with st.form(key="invoice_criteria_form"):
+    st.markdown("#### 🔍 Select Invoice Filter Criteria")
 
-# --- OPTION 2: SPECIFIC DATE(S) ONLY ---
-elif filter_mode == "Specific Date(s)":
-    # Extract all unique dates across the entire dataset (newest first)
+    filter_mode = st.radio(
+        "Filter Invoice By:",
+        ["Customer Name", "Specific Date(s)", "Both (Customer + Date)"],
+        horizontal=True
+    )
+
+    # Temporary variables inside form scope
+    form_cust_list = sorted(df['Customer Name'].dropna().unique().tolist()) if 'Customer Name' in df.columns else []
+    form_selected_cust = st.selectbox("Select Customer Name:", form_cust_list) if form_cust_list else None
+
+    # Extract all unique dates across dataset
     all_dates = sorted(
         pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d').unique().tolist(),
         reverse=True
-    )
-    
-    selected_dates = st.multiselect(
-        "Select Multiple Date(s) for Invoice:",
+    ) if 'Date' in df.columns else []
+
+    form_selected_dates = st.multiselect(
+        "Select Date(s) for Invoice:",
         options=all_dates,
         default=[]
     )
-    
-    if selected_dates:
-        selected_sales = df[
-            pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d').isin(selected_dates)
-        ].copy()
-        
-        inv_customer_name = "All Customers (Daily Summary)"
-        if len(selected_dates) == 1:
-            inv_date_str = pd.to_datetime(selected_dates[0]).strftime("%d-%m-%Y")
-        else:
-            inv_date_str = f"Multiple ({len(selected_dates)} dates)"
 
-# --- OPTION 3: BOTH (CUSTOMER + MULTIPLE DATES) ---
-else:
-    cust_list = sorted(df['Customer Name'].dropna().unique().tolist())
-    selected_cust = st.selectbox("1. Select Customer Name:", cust_list)
-    
-    if selected_cust:
-        inv_customer_name = selected_cust
-        cust_df = df[df['Customer Name'] == selected_cust].copy()
+    # Form submit button prevents instant reruns on every click
+    submitted = st.form_submit_button("🔍 Generate Invoice & Preview", type="primary", use_container_width=True)
+
+# Process data only after form submission
+if submitted:
+    if filter_mode == "Customer Name" and form_selected_cust:
+        inv_customer_name = form_selected_cust
+        selected_sales = df[df['Customer Name'] == form_selected_cust].copy()
+        inv_date_str = pd.Timestamp.now().strftime("%d-%m-%Y")
+
+    elif filter_mode == "Specific Date(s)":
+        if form_selected_dates:
+            selected_sales = df[
+                pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d').isin(form_selected_dates)
+            ].copy()
+            inv_customer_name = "All Customers (Daily Summary)"
+            inv_date_str = f"Multiple ({len(form_selected_dates)} dates)" if len(form_selected_dates) > 1 else pd.to_datetime(form_selected_dates[0]).strftime("%d-%m-%Y")
+
+    elif filter_mode == "Both (Customer + Date)" and form_selected_cust:
+        inv_customer_name = form_selected_cust
+        cust_df = df[df['Customer Name'] == form_selected_cust].copy()
         
-        # Get dates relevant ONLY to this customer
-        cust_dates = sorted(
-            pd.to_datetime(cust_df['Date']).dt.strftime('%Y-%m-%d').unique().tolist(),
-            reverse=True
-        )
-        
-        # 🟢 MULTISELECT DATE WIDGET
-        selected_dates = st.multiselect(
-            "2. Select Date(s) to include in Invoice (Leave empty for All Dates):",
-            options=cust_dates,
-            default=[]  # Default empty means all transactions for this customer
-        )
-        
-        if selected_dates:
+        if form_selected_dates:
             selected_sales = cust_df[
-                pd.to_datetime(cust_df['Date']).dt.strftime('%Y-%m-%d').isin(selected_dates)
+                pd.to_datetime(cust_df['Date']).dt.strftime('%Y-%m-%d').isin(form_selected_dates)
             ]
-            if len(selected_dates) == 1:
-                inv_date_str = pd.to_datetime(selected_dates[0]).strftime("%d-%m-%Y")
-            else:
-                inv_date_str = f"Multiple ({len(selected_dates)} dates)"
+            inv_date_str = f"Multiple ({len(form_selected_dates)} dates)" if len(form_selected_dates) > 1 else pd.to_datetime(form_selected_dates[0]).strftime("%d-%m-%Y")
         else:
             selected_sales = cust_df
             inv_date_str = "All Dates"
 
-# --- DISPLAY PREVIEW & DOWNLOAD BUTTON ---
-if not selected_sales.empty:
-    st.write(f"Previewing items for **{inv_customer_name}** ({inv_date_str}):")
+    # Store query results in session state so they persist on screen
+    st.session_state['inv_sales'] = selected_sales
+    st.session_state['inv_cust'] = inv_customer_name
+    st.session_state['inv_date_str'] = inv_date_str
+
+# --- DISPLAY PREVIEW & DOWNLOAD BUTTON FROM SESSION STATE ---
+if 'inv_sales' in st.session_state and not st.session_state['inv_sales'].empty:
+    current_sales = st.session_state['inv_sales']
+    current_cust = st.session_state['inv_cust']
+    current_date_str = st.session_state['inv_date_str']
+
+    st.write(f"Previewing items for **{current_cust}** ({current_date_str}):")
     
-    # Format Date column for display
-    preview_df = selected_sales.copy()
+    preview_df = current_sales.copy()
     if 'Date' in preview_df.columns:
         preview_df['Formatted Date'] = pd.to_datetime(preview_df['Date']).dt.strftime('%d-%m-%Y')
     else:
         preview_df['Formatted Date'] = 'N/A'
 
-    # Display column order
     cols_to_display = ['Formatted Date']
     for col in ['Customer Name', 'Item Name', 'Item', 'Description', 'Size', 'Quantity', 'Qty', 'Unit Price', 'Amount', 'total_calculated']:
         if col in preview_df.columns and col not in cols_to_display:
             cols_to_display.append(col)
             
-    # Show preview table
     st.dataframe(
         preview_df[cols_to_display].rename(columns={'Formatted Date': 'Date'}), 
         use_container_width=True, 
         hide_index=True
     )
     
-    # Generate PDF in memory
-    pdf_bytes = create_pdf(inv_customer_name, preview_df)
+    pdf_bytes = create_pdf(current_cust, preview_df)
     
-    file_label = inv_customer_name.replace(' ', '_').replace('(', '').replace(')', '')
+    file_label = current_cust.replace(' ', '_').replace('(', '').replace(')', '')
     st.download_button(
         label="📥 Download PDF Invoice",
         data=pdf_bytes,
@@ -1469,4 +1453,4 @@ if not selected_sales.empty:
         use_container_width=True
     )
 else:
-    st.info("ℹ️ Select your filter choices above to display the invoice preview.")
+    st.info("ℹ️ Select your filter criteria inside the form above and click **Generate Invoice & Preview**.")
