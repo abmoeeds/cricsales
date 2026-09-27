@@ -164,24 +164,21 @@ SHEET_ID = "1h2A8Hj0Q3-UVl_JTgBetMGjae6k01Ei2upPSKVJZLX0"
 sh = client.open_by_key(SHEET_ID).sheet1
 
 # --- GOOGLE SHEETS CONNECTION & DATA LOADING WITH CACHING ---
-@st.cache_data(ttl=60)  # Caches data for 60 seconds to prevent API quota limit errors
+@st.cache_data(ttl=60)  # Caches data for 60 seconds to prevent API quota limits
 def load_sheet_data():
-    client = get_gspread_client()  # Use your existing gspread authentication client setup
-    sheet = client.open_by_key(SHEET_ID)
-    worksheet = sheet.sheet1
-    records = worksheet.get_all_records()
-    df_data = pd.DataFrame(records)
-    return df_data
+    # Fetch records directly using your existing client
+    sheet1 = client.open_by_key(SHEET_ID).sheet1
+    records = sheet1.get_all_records()
+    return pd.DataFrame(records)
 
 # Fetch data safely from cache
 try:
     df = load_sheet_data()
-    # Establish direct sheet reference for write operations (append/update cell)
-    sh = get_gspread_client().open_by_key(SHEET_ID).sheet1
+    # Direct sheet handle for write operations (append/update cell)
+    sh = client.open_by_key(SHEET_ID).sheet1
 except Exception as e:
     st.error(f"Failed to fetch data from Google Sheets: {e}")
     st.stop()
-
 
 
 # Open the sheet (Make sure the Sheet Name matches exactly)
