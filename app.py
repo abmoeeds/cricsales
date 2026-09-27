@@ -341,6 +341,7 @@ if st.button("➕ Add Item to Order", use_container_width=True):
             "total_calculated": float(total_calculated)
         })
         st.success(f"Added: {item_name} to order list!")
+        st.cache_data.clear()
         st.rerun()
 
 # --- DISPLAY RUNNING BASKET SUMMARY ---
@@ -1092,6 +1093,7 @@ with st.expander("🗑️ Delete a Record"):
         actual_row = int(to_delete) + 2
         sh.delete_rows(actual_row)
         st.warning("Record deleted from Google Sheets.")
+        st.cache_data.clear()
         st.rerun()
 
 with st.expander("📝 Filter & Bulk Edit Records"):
@@ -1181,6 +1183,7 @@ with st.expander("📝 Filter & Bulk Edit Records"):
             sh.update('A2', data_to_upload)
             
             st.success("Changes saved successfully!")
+            st.cache_data.clear()
             st.rerun()
             
         except Exception as e:
