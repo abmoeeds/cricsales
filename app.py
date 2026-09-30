@@ -549,27 +549,22 @@ if total_pending > 0 or not df.empty:
             except Exception:
                 pass
 
-        # --- 2. CALCULATE OUTSTANDING BALANCES ONLY FOR UNPAID / PENDING SALES ---
+        # --- 2. CALCULATE CUMULATIVE CUSTOMER BALANCES ACROSS ALL SALES ---
+        # Ensure Amount is numeric across all rows in the dataset
         df['Amount_Numeric'] = pd.to_numeric(df['Amount'], errors='coerce').fillna(0.0)
 
-        # Filter for rows that are marked as 'Pending'
-        unpaid_sales_df = df[df['Status'].astype(str).str.strip().str.lower() == 'pending'].copy()
+        # Group ALL historical sales per customer (without filtering by Status string)
+        cust_totals = df.groupby('Customer Name')['Amount_Numeric'].sum().reset_index()
+        cust_totals.rename(columns={'Amount_Numeric': 'Original Total Owed'}, inplace=True)
 
-        if not unpaid_sales_df.empty:
-            # Group original sales total for pending items only
-            cust_totals = unpaid_sales_df.groupby('Customer Name')['Amount_Numeric'].sum().reset_index()
-            cust_totals.rename(columns={'Amount_Numeric': 'Original Total Owed'}, inplace=True)
-            
-            # Map total installments paid from the Installments sheet
-            cust_totals['Total Installments Paid'] = cust_totals['Customer Name'].map(cust_installments_map).fillna(0.0)
-            
-            # Calculate real remaining net balance
-            cust_totals['Current Balance Owed'] = cust_totals['Original Total Owed'] - cust_totals['Total Installments Paid']
-            
-            # Strictly filter out any customer whose net balance is £0.01 or less
-            cust_totals = cust_totals[cust_totals['Current Balance Owed'] > 0.01].sort_values(by='Current Balance Owed', ascending=False).reset_index(drop=True)
-        else:
-            cust_totals = pd.DataFrame(columns=['Customer Name', 'Original Total Owed', 'Total Installments Paid', 'Current Balance Owed'])
+        # Map total installment payments from the Installments sheet tab
+        cust_totals['Total Installments Paid'] = cust_totals['Customer Name'].map(cust_installments_map).fillna(0.0)
+
+        # Calculate exact remaining balance owed
+        cust_totals['Current Balance Owed'] = cust_totals['Original Total Owed'] - cust_totals['Total Installments Paid']
+
+        # Strictly keep customers who still owe MORE than £0.01
+        cust_totals = cust_totals[cust_totals['Current Balance Owed'] > 0.01].sort_values(by='Current Balance Owed', ascending=False).reset_index(drop=True)
 
         st.markdown("#### 👥 Customer Outstanding Totals")
         
